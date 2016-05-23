@@ -51,5 +51,5 @@ get_target_property(QtCore_location Qt5::Core LOCATION)
 message( "QTFTP will be linked against qtcore library: ${QtCore_location}" )
 
 add_subdirectory(lib)
-#add_subdirectory(test)
+add_subdirectory(test)
 add_subdirectory(doc)

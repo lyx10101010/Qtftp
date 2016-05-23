@@ -1,0 +1,9 @@
+This is a file with
+different types
+of
+line endings and
+carriage return
+characters.
+
+
+
