@@ -1,4 +1,4 @@
-project(qtftp_test)
+project(libftp_test)
 
 if (CMAKE_HOST_WIN32)
     #winsock2 lib needed for htonl family of functions

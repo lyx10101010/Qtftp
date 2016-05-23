@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -31,7 +31,7 @@
 #include <arpa/inet.h>
 #endif
 
-namespace QTFTP
+namespace LIBTFTP
 {
 
 
@@ -47,7 +47,7 @@ class TftpServerTest : public QObject
             {
                 m_tftpServer.bind(QHostAddress::Any, 2345);
             }
-            catch(const QTFTP::TftpError &tftpErr)
+            catch(const LIBTFTP::TftpError &tftpErr)
             {
                 QFAIL("Main socket bind fail...");
             }
@@ -124,7 +124,7 @@ void TftpServerTest::readRequestSendsDataPacketOnSessionSocket()
 //TODO: If a host receives a octet file and then returns it, the returned file must be identical to the original.
 
 
-} // namespace QTFTP end
+} // namespace LIBTFTP end
 
-QTEST_MAIN(QTFTP::TftpServerTest)
+QTEST_MAIN(LIBTFTP::TftpServerTest)
 #include "tftpserver_ut.moc"

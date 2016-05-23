@@ -1,4 +1,4 @@
-project(qtftp)
+project(libtftp)
 
 cmake_minimum_required(VERSION 3.2)
 cmake_policy(VERSION 3.2)
@@ -48,7 +48,7 @@ endif()
 
 
 get_target_property(QtCore_location Qt5::Core LOCATION)
-message( "QTFTP will be linked against qtcore library: ${QtCore_location}" )
+message( "libtftp will be linked against qtcore library: ${QtCore_location}" )
 
 add_subdirectory(lib)
 add_subdirectory(test)

@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -24,7 +24,7 @@
 #include <QObject>
 #include <QHostAddress>
 
-namespace QTFTP
+namespace LIBTFTP
 {
 
 
@@ -56,6 +56,6 @@ class AbstractSocket : public QObject
 };
 
 
-} // QTFTP namespace end
+} // LIBTFTP namespace end
 
 #endif //QTFTP_ABSTRACTCLASS_H

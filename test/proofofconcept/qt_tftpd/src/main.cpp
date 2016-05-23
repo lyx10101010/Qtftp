@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -32,7 +32,7 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
-    QCoreApplication::setApplicationName("qtftpd");
+    QCoreApplication::setApplicationName("qt_tftpd");
     QCoreApplication::setApplicationVersion("1.0.0");
 
     QCommandLineParser parser;
@@ -72,12 +72,12 @@ int main(int argc, char *argv[])
         return 4;
     }
 
-    QTFTP::TftpServer tftpServer(dirValue, std::make_shared<QTFTP::UdpSocketFactory>(), nullptr);
+    LIBTFTP::TftpServer tftpServer(dirValue, std::make_shared<LIBTFTP::UdpSocketFactory>(), nullptr);
     try
     {
         tftpServer.bind(QHostAddress::Any, portNr);
     }
-    catch(const QTFTP::TftpError &tftpErr)
+    catch(const LIBTFTP::TftpError &tftpErr)
     {
         std::cerr << (const char*)QObject::tr("Error while binding to UDP port ").toLatin1() << portNr << ": " << tftpErr.what() << std::endl;
         return 5;
@@ -88,9 +88,9 @@ int main(int argc, char *argv[])
     {
         returnCode = app.exec();
     }
-    catch(const QTFTP::TftpError &tftpErr)
+    catch(const LIBTFTP::TftpError &tftpErr)
     {
-        std::cerr << (const char*)QObject::tr("qtftpd exited due to exception: ").toLatin1() << tftpErr.what() << std::endl;
+        std::cerr << (const char*)QObject::tr("qt_tftpd exited due to exception: ").toLatin1() << tftpErr.what() << std::endl;
         return 6;
     }
 

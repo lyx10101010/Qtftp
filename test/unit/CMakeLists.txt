@@ -1,4 +1,4 @@
-project(qtftp_test_unit)
+project(libtftp_test_unit)
 
 
 include_directories( ${CMAKE_SOURCE_DIR}/lib/include ${CMAKE_SOURCE_DIR}/lib/src )

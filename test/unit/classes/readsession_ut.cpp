@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -36,7 +36,7 @@
 #include <arpa/inet.h>
 #endif
 
-namespace QTFTP
+namespace LIBTFTP
 {
 
 
@@ -103,7 +103,7 @@ static qint64 readBytesFromFile(QByteArray &destination, const QString &fileName
 /**
  * @brief ReadSessionTest::errorOnMailTransferMode
  *
- * QTFTP doesn't support transfermode 'Mail', so make sure the appropriate error is sent if we receive a request that uses it
+ * LIBTFTP doesn't support transfermode 'Mail', so make sure the appropriate error is sent if we receive a request that uses it
  */
 void ReadSessionTest::errorOnMailTransferMode()
 {
@@ -493,9 +493,9 @@ void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
 
 //TODO: test ascii transfer mode with CR as last byte of full block
 
-} // namespace QTFTP end
+} // namespace LIBTFTP end
 
-QTEST_MAIN(QTFTP::ReadSessionTest)
+QTEST_MAIN(LIBTFTP::ReadSessionTest)
 #include "readsession_ut.moc"
 
 

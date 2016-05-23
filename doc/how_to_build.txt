@@ -1,7 +1,7 @@
 
 
 Prerequisites:
-- A C++11 compliant C++ compiler. QTFTP has been tested with clang 3.6.0, g++ 4.9 (including MinGW) and Visual Studio 2015. Visual Studio 2013 can't compile QTFTP.
+- A C++14 compliant C++ compiler. Libtftp has been tested with clang 3.7.0, g++ 5 (including MinGW) and Visual Studio 2015. Visual Studio 2013 can't compile libtftp.
 - CMake 3.2 or higher
 - Qt 5.4.0 or higher. Only the Qtcore, Qtnetwork and Qttest libraries are required.  (Qt versions 5.0 - 5.3 might work but have not been tested)
 
@@ -10,20 +10,22 @@ Optional dependencies:
 - If you want to build PDF reference documentation: doxygen, latex, makeindex
 
 
-QTFTP uses CMake for building.
+Libtftp uses CMake for building.
 
 Linux / OS X build instructions:
 - cd <build_dir>
-- cmake  -DCMAKE_BUILD_TYPE:String=Release  -DCMAKE_INSTALL_PREFIX=<QTFTP_INSTALL_DESTINATION>  <QTFTP_SOURCE_DIR>
+- cmake  -DCMAKE_BUILD_TYPE:String=Release <libtftp_source_dir>
 - make
 - make doc
 - make install
+
+If you want to build against qt libraries that are installed in a non-standard location you can add the following option to cmake:
 
 
 Windows build instructions (MinGW)
 - open command prompt and make sure that both the directories of the CMake and MinGW executable are included in the PATH variable
 - cd <build_dir>
-- cmake -G"MinGW Makefiles" -DCMAKE_BUILD_TYPE:String=Release  -DCMAKE_INSTALL_PREFIX=<QTFTP_INSTALL_DESTINATION>  <QTFTP_SOURCE_DIR>
+- cmake -G"MinGW Makefiles" -DCMAKE_BUILD_TYPE:String=Release  <libtftp_source_dir>
 - mingw32-make
 - mingw32-make doc
 - mingw32-make install
@@ -31,15 +33,19 @@ Windows build instructions (MinGW)
 Windows build instructions (Visual Studio 2015, 32bit target)
 - open Visual Studio command prompt from the Visual Studio folder in the start menu
 - cd <build_dir>
-- cmake -G"Visual Studio 14 2015" <QTFTP_SOURCE_DIR>
-- msbuild qtftp.sln /p:Configuration=Release
+- cmake -G"Visual Studio 14 2015" <libtftp_source_dir>
+- msbuild libftp.sln /p:Configuration=Release
 
 Windows build instructions (Visual Studio 2015, 64bit target)
 - open Visual Studio command prompt from the Visual Studio folder in the start menu
 - cd <build_dir>
-- cmake -G"Visual Studio 14 2015 Win64" <QTFTP_SOURCE_DIR>
-- msbuild qtftp.sln /p:Configuration=Release
+- cmake -G"Visual Studio 14 2015 Win64" <libtftp_source_dir>
+- msbuild libftp.sln /p:Configuration=Release
 
 Additional instructions for all platforms:
-- if Qt is not installed in a standard location, you can specify the Qt install dir with the following CMake option: -DCMAKE_PREFIX_PATH:Path=<QT_INSTALL_DIR>
+- if Qt is not installed in a standard location, you can specify the Qt install dir with the following CMake option: 
+   -DQT_PREFIX=<qt_install_dir>
+   
 - 'make test' will run all unit tests
+  IMPORTANT: in order to let all unit tests succeed you must remove all permissions from file 
+  test/unit/test_files/no_permission.txt with command: chmod 000 test/unit/test_files/no_permission.txt

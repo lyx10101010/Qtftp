@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -28,7 +28,7 @@
 #include <vector>
 #include <random>
 
-namespace QTFTP
+namespace LIBTFTP
 {
 
 struct Datagram
@@ -43,7 +43,7 @@ struct Datagram
 /**
  * @brief The UdpSocketStub class
  *
- * Stub for class QUdpSocket, so that we can unit test the QTFTP classes without the
+ * Stub for class QUdpSocket, so that we can unit test the LIBTFTP classes without the
  * need for a physical network. It uses stringstream objects (wrapped in class SimulatedNetworkStream)
  * to capture the data that is sent and received by the socket.
  */
@@ -93,6 +93,6 @@ class UdpSocketStub : public AbstractSocket
 };
 
 
-} //namespace QTFTP end
+} //namespace LIBTFTP end
 
 #endif // UDPSOCKETSTUB_H

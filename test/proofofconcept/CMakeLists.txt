@@ -1,3 +1,3 @@
-project(qtftp_test_proofofconcept)
+project(libtftp_test_proofofconcept)
 
-add_subdirectory(qtftpd)
+add_subdirectory(qt_tftpd)

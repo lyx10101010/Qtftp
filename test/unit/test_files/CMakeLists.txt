@@ -1,4 +1,4 @@
-project(qtftp_test_unit_testfiles)
+project(libftp_test_unit_testfiles)
 
 # one of the test files should not be readable while running unit tests, to provoke a "permission denied" error
 if ( CMAKE_HOST_UNIX )

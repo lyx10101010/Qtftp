@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of QTFTP.
+* This file is part of LIBTFTP.
 *
-* QTFTP is free software; you can redistribute it and/or modify it under
+* LIBTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* QTFTP is distributed in the hope that it will be useful,
+* LIBTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -26,13 +26,13 @@
 
 class QByteArray;
 
-namespace QTFTP
+namespace LIBTFTP
 {
 
 /**
  * @brief The SimulatedNetworkStream class
  *
- * Used to unit test the QTFTP classes without need for a physical network
+ * Used to unit test the LIBTFTP classes without need for a physical network
  */
 class SimulatedNetworkStream : public QObject
 {
@@ -70,6 +70,6 @@ class SimulatedNetworkStream : public QObject
 
 
 
-} //namespace QTFTP end
+} //namespace LIBTFTP end
 
 #endif // SIMULATEDNETWORKSTREAM_H
