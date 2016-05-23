@@ -18,38 +18,27 @@
 *
 ****************************************************************************/
 
-#ifndef READSESSION_H
-#define READSESSION_H
+#ifndef TFTP_ERROR_H
+#define TFTP_ERROR_H
 
-#include "session.h"
-#include "udpsocketfactory.h"
-#include <QByteArray>
+#include <stdexcept>
+
 
 namespace QTFTP
 {
 
 
-class ReadSession : public Session
+class TftpError : public std::runtime_error
 {
     public:
-        ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram, QString filesDir,
-                    std::shared_ptr<UdpSocketFactory> socketFactory=std::make_shared<UdpSocketFactory>());
+        TftpError(const std::string &what) : std::runtime_error(what)
+        {
+        }
 
-    protected slots:
-        void dataReceived() override;
-        void retransmitData() override;
-
-    private:
-        void loadNextBlock();
-        void sendDataPacket(bool isRetransmit=false);
-
-        uint16_t     m_blockNr;
-        QByteArray   m_blockToSend;
-        QByteArray   m_asciiOverflowBuffer; /// used if block size is exceeded after CR/LF conversions
-        char         m_lastCharRead;        ///needed for CR/LF conversion in netascii mode
 };
 
 
-} // QTFTP namespace end
 
-#endif // READSESSION_H
+} // namespace QTFTP end
+
+#endif // TFTP_ERROR_H

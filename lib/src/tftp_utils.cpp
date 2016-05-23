@@ -18,38 +18,37 @@
 *
 ****************************************************************************/
 
-#ifndef READSESSION_H
-#define READSESSION_H
+#include "tftp_utils.h"
 
-#include "session.h"
-#include "udpsocketfactory.h"
-#include <QByteArray>
 
 namespace QTFTP
 {
 
+/**
+\brief Creates the payload for an UDP datagram that indicates a TFTP error
+\param ec Error code to send
+\param errMsg Error message string
 
-class ReadSession : public Session
+The format of the payload that is created is this:
+<pre>
+    2 bytes      2 bytes        string    1 byte
+    ----------------------------------------
+    05 (ERROR) |  ErrorCode |   ErrMsg   |   0  |
+    ----------------------------------------
+</pre>
+
+*/
+QByteArray assembleTftpErrorDatagram(TftpCode::ErrorCode ec, const QString &errMsg)
 {
-    public:
-        ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram, QString filesDir,
-                    std::shared_ptr<UdpSocketFactory> socketFactory=std::make_shared<UdpSocketFactory>());
+    QByteArray dgram;
+    dgram.fill('\0', errMsg.length() + 5 );
 
-    protected slots:
-        void dataReceived() override;
-        void retransmitData() override;
+    assignWordInByteArray(dgram, 0, htons((uint16_t)TftpCode::TFTP_ERROR));
+    assignWordInByteArray(dgram, 2, htons((uint16_t)ec));
 
-    private:
-        void loadNextBlock();
-        void sendDataPacket(bool isRetransmit=false);
-
-        uint16_t     m_blockNr;
-        QByteArray   m_blockToSend;
-        QByteArray   m_asciiOverflowBuffer; /// used if block size is exceeded after CR/LF conversions
-        char         m_lastCharRead;        ///needed for CR/LF conversion in netascii mode
-};
+    strcpy( dgram.data() + 4, (const char*)errMsg.toLatin1() );
+    return std::move(dgram);
+}
 
 
 } // QTFTP namespace end
-
-#endif // READSESSION_H

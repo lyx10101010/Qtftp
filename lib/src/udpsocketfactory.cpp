@@ -18,38 +18,26 @@
 *
 ****************************************************************************/
 
-#ifndef READSESSION_H
-#define READSESSION_H
+#include <include/udpsocket.h>
+#include "include/udpsocketfactory.h"
 
-#include "session.h"
-#include "udpsocketfactory.h"
-#include <QByteArray>
 
 namespace QTFTP
 {
 
 
-class ReadSession : public Session
+UdpSocketFactory::UdpSocketFactory()
 {
-    public:
-        ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram, QString filesDir,
-                    std::shared_ptr<UdpSocketFactory> socketFactory=std::make_shared<UdpSocketFactory>());
 
-    protected slots:
-        void dataReceived() override;
-        void retransmitData() override;
+}
 
-    private:
-        void loadNextBlock();
-        void sendDataPacket(bool isRetransmit=false);
 
-        uint16_t     m_blockNr;
-        QByteArray   m_blockToSend;
-        QByteArray   m_asciiOverflowBuffer; /// used if block size is exceeded after CR/LF conversions
-        char         m_lastCharRead;        ///needed for CR/LF conversion in netascii mode
-};
+std::shared_ptr<AbstractSocket> UdpSocketFactory::createNewSocket(QObject *parent)
+{
+    //auto newSocket = std::make_shared<UdpSocket>(parent);
+    std::shared_ptr<UdpSocket> newSocket = std::make_shared<UdpSocket>(parent);
+    return std::static_pointer_cast<AbstractSocket>( newSocket );
+}
 
 
 } // QTFTP namespace end
-
-#endif // READSESSION_H
