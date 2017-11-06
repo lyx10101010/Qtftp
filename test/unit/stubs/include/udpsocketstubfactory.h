@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -27,7 +27,7 @@
 
 class QHostAddress;
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 class UdpSocketStub;
@@ -39,6 +39,7 @@ class UdpSocketStubFactory : public UdpSocketFactory
         enum class StreamDirection { Input, Output };
 
         UdpSocketStubFactory();
+        virtual ~UdpSocketStubFactory();
 
         std::shared_ptr<AbstractSocket> createNewSocket(QObject *parent=nullptr) override;
         void setSocketPeer(const QHostAddress &destAddr, uint16_t destPort, const QHostAddress &sourceAddr, uint16_t sourcePort);
@@ -51,6 +52,6 @@ class UdpSocketStubFactory : public UdpSocketFactory
 };
 
 
-} // LIBTFTP namespace end
+} // QTFTP namespace end
 
 #endif // UDPSOCKETSTUBFACTORY_H

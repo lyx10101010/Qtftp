@@ -1,4 +1,4 @@
-project(libtftp_doc)
+project(qtftp_doc)
 
 add_subdirectory(doxygen)
 

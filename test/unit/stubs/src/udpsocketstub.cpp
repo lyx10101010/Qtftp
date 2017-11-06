@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -22,7 +22,7 @@
 #include <QHostAddress>
 
 
-namespace LIBTFTP {
+namespace QTFTP {
 
 
 //static class members initialization
@@ -111,7 +111,7 @@ void QUdpSocketStub::assignPeerPort(quint16 port)
 #endif
 
 
-qint64 LIBTFTP::UdpSocketStub::readDatagram(char *data, qint64 maxSize, QHostAddress *address, quint16 *port)
+qint64 QTFTP::UdpSocketStub::readDatagram(char *data, qint64 maxSize, QHostAddress *address, quint16 *port)
 {
     if (m_pendingInputDatagrams.empty())
     {
@@ -208,6 +208,12 @@ quint16 UdpSocketStub::peerPort() const
 }
 
 
+QString UdpSocketStub::errorString() const
+{
+    return QString("Unknown error, this is a simulated socket");
+}
+
+
 bool UdpSocketStub::bind(const QHostAddress &address, quint16 port, QAbstractSocket::BindMode mode)
 {
 
@@ -232,4 +238,4 @@ bool UdpSocketStub::bind(const QHostAddress &address, quint16 port, QAbstractSoc
 }
 
 
-} // namespace LIBTFTP end
+} // namespace QTFTP end

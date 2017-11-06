@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -24,16 +24,25 @@
 #include "session.h"
 #include "udpsocketfactory.h"
 #include <QByteArray>
+#include <chrono>
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 
 class ReadSession : public Session
 {
+    Q_OBJECT
+
     public:
         ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram, QString filesDir,
-                    std::shared_ptr<UdpSocketFactory> socketFactory=std::make_shared<UdpSocketFactory>());
+                    unsigned int slowNetworkThresholdUs, std::shared_ptr<UdpSocketFactory> socketFactory=std::make_shared<UdpSocketFactory>());
+
+        unsigned averageAckDelayUs() const;
+        uint16_t currBlockNr() const;
+
+    signals:
+        void progress(unsigned int progressPerc);
 
     protected slots:
         void dataReceived() override;
@@ -47,9 +56,13 @@ class ReadSession : public Session
         QByteArray   m_blockToSend;
         QByteArray   m_asciiOverflowBuffer; /// used if block size is exceeded after CR/LF conversions
         char         m_lastCharRead;        ///needed for CR/LF conversion in netascii mode
+        std::chrono::high_resolution_clock::time_point m_previousSendTime;
+        std::vector<unsigned int> m_ackTimes; /// used to calculate average time delay between data sent and ack received
+        bool         m_slowNetworkReported;
+        unsigned int m_slowNetworkThresholdUs; /// threshold for time between data package sending and ack receipt
 };
 
 
-} // LIBTFTP namespace end
+} // QTFTP namespace end
 
 #endif // READSESSION_H

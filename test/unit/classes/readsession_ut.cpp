@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -35,10 +35,10 @@
 #else
 #include <arpa/inet.h>
 #endif
+#include <thread>
 
-namespace LIBTFTP
+namespace QTFTP
 {
-
 
 
 class ReadSessionTest : public QObject
@@ -49,11 +49,16 @@ class ReadSessionTest : public QObject
 
         ReadSessionTest() : m_socketFactory(std::make_shared<UdpSocketStubFactory>())
         {
+            if (m_rrqOpcode == 0x0)
+            {
+                m_rrqOpcode = htons(0x0001);
+                m_ackOpcode = htons(0x0004);
+            }
         }
 
         QByteArray createReadSessionAndReturnNetworkResponse(const QHostAddress &peerAddr, uint16_t peerPort, const QByteArray &rrqDatagram)
         {
-            m_readSession  = std::make_unique<ReadSession>(peerAddr, peerPort, rrqDatagram, TFTP_TEST_FILES_DIR, m_socketFactory);
+            m_readSession  = std::make_unique<ReadSession>(peerAddr, peerPort, rrqDatagram, TFTP_TEST_FILES_DIR, 2000, m_socketFactory);
             //the source port of the session socket is randomly choosen, but there should be only 1 socket, so find any
             SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
             QByteArray sentData;
@@ -78,12 +83,13 @@ class ReadSessionTest : public QObject
         void retransmitDataBlockOnTimeout();
         void transmitFileSmallerThanOneBlockAscii();
         void transmitFileLargerThanOneBlockAscii();
+        void detectSlowNetwork();
 
 };
 
-uint16_t ReadSessionTest::m_rrqOpcode( htons(0x0001) );
-uint16_t ReadSessionTest::m_ackOpcode( htons(0x0004) );
 
+uint16_t ReadSessionTest::m_rrqOpcode( 0x0 ); //not allowed to call htons function at file scope
+uint16_t ReadSessionTest::m_ackOpcode( 0x0 );
 
 static qint64 readBytesFromFile(QByteArray &destination, const QString &fileName, qint64 offsetInFile, qint64 nrOfBytes)
 {
@@ -100,10 +106,13 @@ static qint64 readBytesFromFile(QByteArray &destination, const QString &fileName
 }
 
 
+//TODO: test transfer with overflow of blocknr
+//TODO: test what happens if client sends ACK with wrong blocknr, currently this results in crash
+
 /**
  * @brief ReadSessionTest::errorOnMailTransferMode
  *
- * LIBTFTP doesn't support transfermode 'Mail', so make sure the appropriate error is sent if we receive a request that uses it
+ * QTFTP doesn't support transfermode 'Mail', so make sure the appropriate error is sent if we receive a request that uses it
  */
 void ReadSessionTest::errorOnMailTransferMode()
 {
@@ -266,6 +275,15 @@ void ReadSessionTest::transferFileLargerThanOneBlockBinary()
     QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
     uint16_t ackBlockNr = htons( 0x0001);
     ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    inNetworkStream << ackDatagram;
+
+    QCOMPARE(m_readSession->state(), Session::State::Busy); // final ack not yet received, so state should still be 'busy'
+
+    //send duplicate ack to readsession, should be ignored by readsession
+    //SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
+    //QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    //uint16_t ackBlockNr = htons( 0x0001);
+    //ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
 
     QCOMPARE(m_readSession->state(), Session::State::Busy); // final ack not yet received, so state should still be 'busy'
@@ -490,12 +508,57 @@ void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
     QCOMPARE(sentBlock, expectedBlock);
 }
 
+void ReadSessionTest::detectSlowNetwork()
+{
+    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    rrqDatagram.append("large_file.txt"); // name of requested file
+    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append("netascii");          // transfer mode
+    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+
+    bool signalEmitted = false;
+    QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
+    connect(m_readSession.get(), &ReadSession::slowNetwork, [&]() { signalEmitted=true;} );
+
+    SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
+    SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
+    for (int i=0; i<6; ++i)
+    {
+        //sleep 1 ms to simulate somewhat slow network
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(1ms);
+        QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+        uint16_t ackBlockNr = htons(i);
+        ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+        inNetworkStream << ackDatagram;
+        outNetworkStream >> sentData;
+    }
+
+    //Average response time should still be below 2000 us default threshold, so slowNetwork signal should not be emitted yet
+    QCOMPARE(signalEmitted, false);
+
+    for (int i=6; i<12; ++i)
+    {
+        //sleep 10 ms to simulate slow network
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(10ms);
+        QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+        uint16_t ackBlockNr = htons(i);
+        ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+        inNetworkStream << ackDatagram;
+        outNetworkStream >> sentData;
+    }
+
+    //Now the average respons time should have dropped enough to emit slowNetwork signal
+    QCOMPARE(signalEmitted, true);
+
+}
 
 //TODO: test ascii transfer mode with CR as last byte of full block
 
-} // namespace LIBTFTP end
+} // namespace QTFTP end
 
-QTEST_MAIN(LIBTFTP::ReadSessionTest)
+QTEST_MAIN(QTFTP::ReadSessionTest)
 #include "readsession_ut.moc"
 
 

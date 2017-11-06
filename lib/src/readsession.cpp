@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -27,11 +27,15 @@
 #include <arpa/inet.h>
 #endif
 #include <cassert>
+#include <cmath>
+#include <iostream>
 
 using namespace std::string_literals;
 
-namespace LIBTFTP
+namespace QTFTP
 {
+
+static constexpr unsigned int PopulationForAckTimeAverage = 20;
 
 /**
  * @brief ReadSession::ReadSession
@@ -48,11 +52,15 @@ namespace LIBTFTP
  *          | Opcode |  Filename  |   0  |    Mode    |   0  |
  *           ------------------------------------------------
  * </pre>
+ *
+ * Opcode for read request is 1. Mode should be either 'netascii' or 'octet'.
  */
 ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram,
-                         QString filesDir, std::shared_ptr<UdpSocketFactory> socketFactory) : Session(peerAddr, peerPort, socketFactory),
+                         QString filesDir, unsigned int slowNetworkThresholdUs, std::shared_ptr<UdpSocketFactory> socketFactory) : Session(peerAddr, peerPort, socketFactory),
                                                                                               m_blockNr(0),
-                                                                                              m_lastCharRead('\0')
+                                                                                              m_lastCharRead('\0'),
+                                                                                              m_slowNetworkReported(false),
+                                                                                              m_slowNetworkThresholdUs(slowNetworkThresholdUs)
 {
     assert( ntohs( readWordInByteArray(rrqDatagram, 0) ) == TftpCode::TFTP_RRQ );
 
@@ -113,6 +121,22 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
 
 
 /**
+ * @brief ReadSession::averageAckDelayMs calculate average time between sending data package and receiving its ACK datagram
+ * @return average time between sent and ACK in us or 0 if no ACK msg has been received yet
+ */
+unsigned ReadSession::averageAckDelayUs() const
+{
+    if (m_ackTimes.size() == 0)
+    {
+        return 0;
+    }
+    auto delaySum = std::accumulate(m_ackTimes.begin(), m_ackTimes.end(), 0);
+    float averageDelay = delaySum / static_cast<float>(m_ackTimes.size());
+    return static_cast<unsigned int>(averageDelay + 0.5);
+}
+
+
+/**
  * @brief ReadSession::dataReceived handles incoming data for this read session
  *
  * Call this function when new data on the UDP socket of this session is available. It will
@@ -156,11 +180,22 @@ void ReadSession::dataReceived()
     //we received an ACK, so stop re-transmit timer
     stopRetransmitTimer();
 
-    int16_t ackBlockNr =  ntohs( ((uint16_t*)ackDatagram.data())[1] );
+    uint16_t ackBlockNr =  ntohs( ((uint16_t*)ackDatagram.data())[1] );
+    //static auto lastSend = std::chrono::high_resolution_clock::now();
+    //auto currTime = std::chrono::high_resolution_clock::now();
+    //std::cerr <<  std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count()  << ": received ack " << ackBlockNr << "after "
+    //          << std::chrono::duration_cast<std::chrono::microseconds>(currTime-lastSend).count() << " us since send" << std::endl;
+    if (m_blockNr > 0 && ackBlockNr == (m_blockNr-1))
+    {
+        //duplicate ACK received, ignore because data packet was already sent when we received the previous ACK
+    //    std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count() << ": duplicate ack recvd" << std::endl;
+        return;
+    }
     if (ackBlockNr != m_blockNr)
     {
         setState(State::InError);
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Ack contains wrong block number");
+    //    std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count() << ": wrong ack recvd, send error" << std::endl;
         sendDatagram(errorDgram);
         return;
     }
@@ -172,9 +207,38 @@ void ReadSession::dataReceived()
         return;
     }
 
+    // keep running average of time it takes to receive ack from client
+    std::chrono::high_resolution_clock::time_point ackRecvTime = std::chrono::high_resolution_clock::now();
+    if (!m_slowNetworkReported && m_blockNr > 0)
+    {
+        assert(m_previousSendTime != std::chrono::high_resolution_clock::time_point());
+        if (m_ackTimes.size() > PopulationForAckTimeAverage)
+        {
+            m_ackTimes.erase(m_ackTimes.begin());
+        }
+        auto ackDelay = ackRecvTime - m_previousSendTime;
+        auto ackTimeus = std::chrono::duration_cast<std::chrono::microseconds>(ackDelay).count();
+        //std::cerr << "ack time: " << ackTimeus << " , blocknr " << m_blockNr << std::endl;
+        if (ackTimeus < 0)
+        {
+            ackTimeus = 0;
+        }
+        m_ackTimes.push_back(ackTimeus);
+        if ( (m_blockNr % 5 == 0) &&
+             (averageAckDelayUs() > m_slowNetworkThresholdUs) )
+        {
+            emit slowNetwork();
+            m_slowNetworkReported = true;
+        }
+    }
+
     //load and send next block of file
     loadNextBlock();
+    //currTime = std::chrono::high_resolution_clock::now();
+    //std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count() << ": after loadNextBlock" << std::endl;
     sendDataPacket();
+    //currTime = lastSend = std::chrono::high_resolution_clock::now();
+    //std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count() << ": after sendDataPacket" << std::endl;
 }
 
 
@@ -273,8 +337,12 @@ void ReadSession::sendDataPacket(bool isRetransmit)
     datagram.append( m_blockToSend );
     assert( datagram.size() <= (TftpBlockSize + 4) );
 
+    m_previousSendTime = std::chrono::high_resolution_clock::now();
     sendDatagram(datagram, true);
+    unsigned int progressPerc = (unsigned int)(float(posInFile()) / fileSize() * 100.0f + 0.5);
+    assert(progressPerc <= 100);
+    emit progress(progressPerc);
 }
 
 
-} // LIBTFTP namespace end
+} // QTFTP namespace end

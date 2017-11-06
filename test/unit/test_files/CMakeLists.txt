@@ -1,4 +1,4 @@
-project(libftp_test_unit_testfiles)
+project(qtftp_test_unit_testfiles)
 
 # one of the test files should not be readable while running unit tests, to provoke a "permission denied" error
 if ( CMAKE_HOST_UNIX )
@@ -21,3 +21,14 @@ if ( CHMOD_ERROR )
     message( "Could not change permission of test file ${CMAKE_CURRENT_SOURCE_DIR}/no_permission.txt (${CHMOD_ERROR})" )
     message( "One or more unit tests will fail." )
 endif()
+
+
+# one of the tests needs a large file. To keep the repository size small, we generate it.
+file(REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/large_file.txt)
+file( READ ${CMAKE_CURRENT_SOURCE_DIR}/1024_byte_file.txt ONE_KB_FILE_CONTENTS LIMIT 1024 )
+
+set(LOOP_INDEX 0)
+while( LOOP_INDEX LESS 5)
+    file(APPEND ${CMAKE_CURRENT_SOURCE_DIR}/large_file.txt ${ONE_KB_FILE_CONTENTS})
+    math( EXPR LOOP_INDEX ${LOOP_INDEX}+1 )
+endwhile()

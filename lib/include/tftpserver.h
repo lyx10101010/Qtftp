@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -28,9 +28,9 @@
 
 
 class QAbstractSocket;
+class QHostAddress;
 
-
-namespace LIBTFTP
+namespace QTFTP
 {
 
 constexpr int DefaultTftpPortNr = 69;
@@ -46,12 +46,21 @@ class TftpServer : public QObject
 
     public:
         explicit TftpServer(const QString &filesDir, std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = 0);
+        explicit TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = 0);
         virtual ~TftpServer();
 
-        virtual void bind(QHostAddress hostAddr=QHostAddress(QHostAddress::LocalHost),
-                          uint16_t portNr=DefaultTftpPortNr);
+        virtual void bind(const QHostAddress &hostAddr=QHostAddress(QHostAddress::LocalHost));
+        virtual void close();
+        void setServerPort(uint16_t port);
+        void setFilesDir(const QString &filesDir);
+        void setSlowNetworkDetectionThreshold(unsigned int ackLatencyUs);
+
+        quint16 serverPort() const;
+        const QString & filesDir() const;
+        std::shared_ptr<const ReadSession> findReadSession(const SessionIdent &sessionIdent) const;
 
     signals:
+        void newReadSession(std::shared_ptr<const ReadSession> newSession);
         void receivedFile();
 
     private slots:
@@ -59,15 +68,15 @@ class TftpServer : public QObject
         void removeSession();
 
     private:
-        std::shared_ptr<ReadSession> findReadSession(const SessionIdent &sessionIdent) const;
+        std::shared_ptr<ReadSession> doFindReadSession(const SessionIdent &sessionIdent) const;
 
         QString m_filesDir;
         std::shared_ptr<UdpSocketFactory> m_socketFactory;  ///creates real sockets in production code, test stub sockets in unit tests
         std::shared_ptr<UdpSocket> m_mainSocket; //could have been unique_ptr, but shared_ptr needed in socket stub for testing
         std::vector< std::shared_ptr<ReadSession> > m_readSessions;
+        uint16_t m_tftpServerPort;
+        unsigned int m_slowNetworkThreshold;
 
-    //allow witebox testing by letting some tests access our internals
-    //FRIEND_TEST(TftpServerTest, ReadRequestSendsAckOnSessionSocket);
 };
 
 

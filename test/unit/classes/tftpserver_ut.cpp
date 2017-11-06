@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -31,7 +31,7 @@
 #include <arpa/inet.h>
 #endif
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 
@@ -43,11 +43,16 @@ class TftpServerTest : public QObject
 
         TftpServerTest() : m_tftpServer(TFTP_TEST_FILES_DIR, m_socketFactory=std::make_shared<UdpSocketStubFactory>(), nullptr)
         {
+            if (m_rrqOpcode == 0x0)
+            {
+                m_rrqOpcode = htons(0x0001);
+            }
             try
             {
-                m_tftpServer.bind(QHostAddress::Any, 2345);
+                m_tftpServer.setServerPort(2345);
+                m_tftpServer.bind(QHostAddress::Any);
             }
-            catch(const LIBTFTP::TftpError &tftpErr)
+            catch(const QTFTP::TftpError &tftpErr)
             {
                 QFAIL("Main socket bind fail...");
             }
@@ -66,7 +71,7 @@ class TftpServerTest : public QObject
         void readRequestSendsDataPacketOnSessionSocket();
 };
 
-uint16_t TftpServerTest::m_rrqOpcode( htons(0x0001) );
+uint16_t TftpServerTest::m_rrqOpcode( 0x0 );
 
 
 void TftpServerTest::instantiating()
@@ -124,7 +129,7 @@ void TftpServerTest::readRequestSendsDataPacketOnSessionSocket()
 //TODO: If a host receives a octet file and then returns it, the returned file must be identical to the original.
 
 
-} // namespace LIBTFTP end
+} // namespace QTFTP end
 
-QTEST_MAIN(LIBTFTP::TftpServerTest)
+QTEST_MAIN(QTFTP::TftpServerTest)
 #include "tftpserver_ut.moc"

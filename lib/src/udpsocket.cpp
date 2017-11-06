@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -21,7 +21,7 @@
 #include "udpsocket.h"
 #include <QAbstractSocket>
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 
@@ -57,9 +57,16 @@ QHostAddress UdpSocket::peerAddress() const
     return m_socket.peerAddress();
 }
 
+
 quint16 UdpSocket::peerPort() const
 {
     return m_socket.peerPort();
+}
+
+
+QString UdpSocket::errorString() const
+{
+    return m_socket.errorString();
 }
 
 
@@ -68,21 +75,24 @@ bool UdpSocket::bind(const QHostAddress &address, quint16 port, QAbstractSocket:
     return m_socket.bind(address, port, mode);
 }
 
+
+void UdpSocket::close()
+{
+    m_socket.close();
+}
+
+
 qint64 UdpSocket::readDatagram(char *data, qint64 maxSize, QHostAddress *address, quint16 *port)
 {
     return m_socket.readDatagram(data, maxSize, address, port);
 }
+
 
 qint64 UdpSocket::writeDatagram(const QByteArray &datagram, const QHostAddress &host, quint16 port)
 {
     return m_socket.writeDatagram(datagram, host, port);
 }
 
-//void UdpSocket::dataReceived()
-//{
-//    bool hasDatagrams = m_socket.hasPendingDatagrams();
-//    emit readyRead();
-//}
 
 qint64 UdpSocket::pendingDatagramSize() const
 {
@@ -95,4 +105,4 @@ bool UdpSocket::hasPendingDatagrams() const
 }
 
 
-} // LIBTFTP namespace end
+} // QTFTP namespace end

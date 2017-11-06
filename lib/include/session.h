@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -29,7 +29,7 @@
 
 
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 class AbstractSocket;
@@ -68,6 +68,10 @@ class Session : public QObject
         QString filePath() const;
         bool    fileExists() const;
         bool    atEndOfFile() const;
+        qint64  posInFile() const;
+        qint64  fileSize() const;
+        quint16 localPort() const;
+
         QString lastFileError() const;
         TftpCode::Mode transferMode() const;
         const SessionIdent &peerIdent() const;
@@ -86,7 +90,7 @@ class Session : public QObject
         void setFilePath(const QString &directory, const QString &fileName);
         void setState(State newState);
         void readDatagram(QByteArray &datagram, QHostAddress *peerAddress=nullptr, quint16 *peerPort=nullptr);
-        void sendDatagram(const QByteArray &datagram, bool startRetransmitTimer=false);
+        void sendDatagram(QByteArray datagram, bool startRetransmitTimer=false);
         void stopRetransmitTimer();
         virtual void retransmitData() = 0;
 
@@ -100,8 +104,7 @@ class Session : public QObject
     signals:
         void finished();
         void error();
-
-
+        void slowNetwork();
 
     private:
         QFile               m_file; //file to read or write
@@ -117,6 +120,6 @@ class Session : public QObject
 
 
 
-} // namespace LIBTFTP end
+} // namespace QTFTP end
 
 #endif // SESSION_H

@@ -1,14 +1,14 @@
 /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
-* This file is part of LIBTFTP.
+* This file is part of QTFTP.
 *
-* LIBTFTP is free software; you can redistribute it and/or modify it under
+* QTFTP is free software; you can redistribute it and/or modify it under
 * the terms of the GNU Lesser General Public License as published by
 * the Free Software Foundation; either version 2.1 of the License, or
 * (at your option) any later version.
 *
-* LIBTFTP is distributed in the hope that it will be useful,
+* QTFTP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Lesser General Public License for more details.
@@ -24,11 +24,12 @@
 #include "tftp_error.h"
 #include <QFileInfo>
 #include <QDir>
+#include <string>
 #include <cassert>
 
 using namespace std::string_literals;
 
-namespace LIBTFTP
+namespace QTFTP
 {
 
 SessionIdent::SessionIdent(const QHostAddress &address, uint16_t port) : m_address(address), m_port(port)
@@ -91,6 +92,23 @@ bool Session::atEndOfFile() const
 }
 
 
+qint64 Session::posInFile() const
+{
+    return m_file.pos();
+}
+
+
+qint64 Session::fileSize() const
+{
+    return m_file.size();
+}
+
+quint16 Session::localPort() const
+{
+    return m_sessionSocket ? m_sessionSocket->localPort() : 0;
+}
+
+
 QString Session::lastFileError() const
 {
     return std::move(m_file.errorString());
@@ -133,7 +151,7 @@ bool Session::openFile(QIODevice::OpenModeFlag openMode)
 /**
  * @brief Session::readFromFile read data from source file into buffer
  * @param buffer the destination where the data read from file will be stored
- * @param maxSize the maximum size that the buffer will have after this function completed
+ * @param maxSize the maximum size that the buffer will have after this function completed (unless end of file was reached before)
  * @return true if read action succeedded, false if an error occurred.
  *
  * Note that \p maxSize is the maximum size of \p buffer after completion of this function. In other words,
@@ -204,7 +222,7 @@ void Session::setFilePath(const QString &directory, const QString &fileName)
  * @param datagram the payload of the datagram to send
  * @throw TftpError if there was an error while sending the datagram
  */
-void Session::sendDatagram(const QByteArray &datagram, bool startRetransmitTimer)
+void Session::sendDatagram(QByteArray datagram, bool startRetransmitTimer)
 {
     if( m_sessionSocket->writeDatagram(datagram, m_peerIdent.m_address, m_peerIdent.m_port) == -1 )
     {
@@ -271,4 +289,4 @@ void Session::readDatagram(QByteArray &datagram, QHostAddress *peerAddress, quin
 }
 
 
-} // namespace LIBTFTP end
+} // namespace QTFTP end
