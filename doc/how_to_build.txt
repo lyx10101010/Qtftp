@@ -41,5 +41,5 @@ Windows build instructions (Visual Studio 2015, 64bit target)
 - msbuild qtftp.sln /p:Configuration=Release
 
 Additional instructions for all platforms:
-- if Qt is not installed in a standard location, you can specify the Qt install dir with the following CMake option: -DCMAKE_PREFIX_PATH:Path=<QT_INSTALL_DIR>
+- if Qt is not installed in a standard location, you can specify the Qt install dir with the following CMake option: -DQT_PREFIX:Path=<QT_INSTALL_DIR>
 - 'make test' will run all unit tests
