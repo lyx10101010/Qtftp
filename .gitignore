@@ -165,3 +165,6 @@ pip-log.txt
 #QtCreator settings file for CMake projects
 CMakeLists.txt.user
 
+#Ignore unit test input file that is created during cmake configure
+test/unit/test_files/large_file.txt
+
