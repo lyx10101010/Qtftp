@@ -71,6 +71,8 @@ class UdpSocketStub : public AbstractSocket
 
         virtual bool bind(const QHostAddress &address, quint16 port, QAbstractSocket::BindMode mode) override;
 
+        virtual void close() override;
+
     protected:
         void setLocalAddress(const QHostAddress &address);
         void setLocalPort(quint16 port);

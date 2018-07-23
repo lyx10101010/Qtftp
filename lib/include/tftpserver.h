@@ -21,11 +21,12 @@
 #ifndef QTFTPSERVER_H
 #define QTFTPSERVER_H
 
+#include "udpsocket.h"
 #include <QObject>
 #include <QHostAddress>
 #include <memory>
 #include <vector>
-
+#include <map>
 
 class QAbstractSocket;
 class QHostAddress;
@@ -37,26 +38,50 @@ constexpr int DefaultTftpPortNr = 69;
 
 struct SessionIdent;
 class ReadSession;
-class UdpSocket;
 class UdpSocketFactory;
+
+class ConnectionRequestSocket : public QObject
+{
+    Q_OBJECT
+
+    public:
+        ConnectionRequestSocket(const QString &filesDir, std::shared_ptr<UdpSocketFactory> socketFactory);
+        virtual ~ConnectionRequestSocket() = default;
+
+        const QString &filesDir() const;
+        QString errorString() const;
+        bool hasPendingDatagrams() const;
+        qint64 pendingDatagramSize() const;
+        quint16 localPort() const;
+
+        bool bind(const QHostAddress &address, quint16 port = 0, QAbstractSocket::BindMode mode = QAbstractSocket::DefaultForPlatform);
+        qint64 readDatagram(char *data, qint64 maxSize, QHostAddress *address = nullptr, quint16 *port = nullptr);
+        qint64 writeDatagram(const QByteArray &datagram, const QHostAddress &host, quint16 port);
+        void close();
+
+    signals:
+        void readyRead();
+
+    private:
+        std::shared_ptr<AbstractSocket> m_socket;
+        QString m_filesDir;
+};
+
 
 class TftpServer : public QObject
 {
     Q_OBJECT
 
     public:
-        explicit TftpServer(const QString &filesDir, std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = 0);
-        explicit TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = 0);
-        virtual ~TftpServer();
+        explicit TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = nullptr);
+        //explicit TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent = nullptr);
+        virtual ~TftpServer() = default;
 
-        virtual void bind(const QHostAddress &hostAddr=QHostAddress(QHostAddress::LocalHost));
+        virtual void bind(const QString &filesDir, const QHostAddress &hostAddr=QHostAddress(QHostAddress::LocalHost), uint16_t port=69);
         virtual void close();
-        void setServerPort(uint16_t port);
-        void setFilesDir(const QString &filesDir);
+
         void setSlowNetworkDetectionThreshold(unsigned int ackLatencyUs);
 
-        quint16 serverPort() const;
-        const QString & filesDir() const;
         std::shared_ptr<const ReadSession> findReadSession(const SessionIdent &sessionIdent) const;
 
     signals:
@@ -69,13 +94,14 @@ class TftpServer : public QObject
 
     private:
         std::shared_ptr<ReadSession> doFindReadSession(const SessionIdent &sessionIdent) const;
+        void handleNewData(std::shared_ptr<ConnectionRequestSocket> mainSocket);
 
-        QString m_filesDir;
         std::shared_ptr<UdpSocketFactory> m_socketFactory;  ///creates real sockets in production code, test stub sockets in unit tests
-        std::shared_ptr<UdpSocket> m_mainSocket; //could have been unique_ptr, but shared_ptr needed in socket stub for testing
+        //std::shared_ptr<UdpSocket> m_mainSocket; //could have been unique_ptr, but shared_ptr needed in socket stub for testing
+        std::vector<std::shared_ptr<ConnectionRequestSocket>> m_mainSockets; /// sockets that listen for new connection requests
         std::vector< std::shared_ptr<ReadSession> > m_readSessions;
-        uint16_t m_tftpServerPort;
         unsigned int m_slowNetworkThreshold;
+        //std::map<std::pair<QHostAddress, uint16_t>, QString> m_filesDirs;
 
 };
 

@@ -41,6 +41,8 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     QCommandLineOption portOption( {"p", "port"}, QObject::tr("UDP port to listen on"), "portValue", "69");
     QCommandLineOption dirOption( {"d", "directory"}, QObject::tr("Directory where to read/write files"), "dirValue" );
+    QCommandLineOption configFileOption( {"c", "config"}, QObject::tr("Read configuration from file"), "configValue", "/etc/qtftpd.conf" );
+
     parser.addOption(portOption);
     parser.addOption(dirOption);
     parser.process(app);
@@ -50,37 +52,38 @@ int main(int argc, char *argv[])
     unsigned int portNr = portValue.toUInt(&portOk);
     if (!portOk || portNr > std::numeric_limits<std::uint16_t>::max())
     {
-        std::cerr << (const char*)QObject::tr("Error: invalid port number provided.").toLatin1() << std::endl;
+        std::cerr << QObject::tr("Error: invalid port number provided.").toStdString() << std::endl;
         return 1;
     }
 
     QString dirValue = parser.value(dirOption);
     if (dirValue.isEmpty())
     {
-        std::cerr << (const char*)QObject::tr("Error: directory where to read/write files not specified.").toLatin1() << std::endl;
+        std::cerr << QObject::tr("Error: directory where to read/write files not specified.").toStdString() << std::endl;
         parser.showHelp(2);
     }
     QFileInfo dirInfo(dirValue);
     if (!dirInfo.exists())
     {
-        std::cerr << (const char*)QObject::tr("Error: specified files directory does not exist.").toLatin1() << std::endl;
+        std::cerr << QObject::tr("Error: specified files directory does not exist.").toStdString() << std::endl;
         return 3;
     }
+
+    //TODO: allow readonly dir
     if (!dirInfo.isReadable() || !dirInfo.isWritable())
     {
-        std::cerr << (const char*)QObject::tr("Error: specified files directory is not readable and/or writable.").toLatin1() << std::endl;
+        std::cerr << QObject::tr("Error: specified files directory is not readable and/or writable.").toStdString() << std::endl;
         return 4;
     }
 
-    QTFTP::TftpServer tftpServer(dirValue, std::make_shared<QTFTP::UdpSocketFactory>(), nullptr);
+    QTFTP::TftpServer tftpServer(std::make_shared<QTFTP::UdpSocketFactory>(), nullptr);
     try
     {
-        tftpServer.setServerPort(portNr);
-        tftpServer.bind(QHostAddress::Any);
+        tftpServer.bind(dirValue, QHostAddress::Any, static_cast<uint16_t>(portNr));
     }
     catch(const QTFTP::TftpError &tftpErr)
     {
-        std::cerr << (const char*)QObject::tr("Error while binding to UDP port ").toLatin1() << portNr << ": " << tftpErr.what() << std::endl;
+        std::cerr << QObject::tr("Error while binding to UDP port ").toStdString() << portNr << ": " << tftpErr.what() << std::endl;
         return 5;
     }
 
@@ -91,7 +94,7 @@ int main(int argc, char *argv[])
     }
     catch(const QTFTP::TftpError &tftpErr)
     {
-        std::cerr << (const char*)QObject::tr("qtftpd exited due to exception: ").toLatin1() << tftpErr.what() << std::endl;
+        std::cerr << QObject::tr("qtftpd exited due to exception: ").toStdString() << tftpErr.what() << std::endl;
         return 6;
     }
 

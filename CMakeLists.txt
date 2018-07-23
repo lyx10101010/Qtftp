@@ -1,12 +1,7 @@
-project(qtftp)
-
 cmake_minimum_required(VERSION 3.9)
-cmake_policy(VERSION 3.2)
-
-SET (QTFTP_VERSION_MAJOR "1" CACHE String "Major version of bspinstaller" FORCE)
-SET (QTFTP_VERSION_MINOR "1" CACHE String "Minor version of bspinstaller" FORCE)
-SET (QTFTP_VERSION_PATCH "0" CACHE String "Patch version of bspinstaller" FORCE)
-SET (QTFTP_VERSION ${QTFTP_VERSION_MAJOR}.${QTFTP_VERSION_MINOR}.${QTFTP_VERSION_PATCH})
+cmake_policy(SET CMP0048 NEW) #allows to set version in project command
+#cmake_policy(VERSION 3.2)
+project(QTFTP VERSION 1.2.0)
 
 enable_testing()
 
@@ -31,5 +26,6 @@ get_target_property(QtCore_location Qt5::Core LOCATION)
 message(STATUS "Qt at location: ${QtCore_location} will be used." )
 
 add_subdirectory(lib)
+add_subdirectory(qtftpd)
 add_subdirectory(test)
 add_subdirectory(doc)

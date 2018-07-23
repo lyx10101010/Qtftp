@@ -14,6 +14,7 @@ set( QTFTP_STUBLIB_SOURCE_FILES src/udpsocketstub.cpp
 #because the include files are in a different directory than the .cpp files we have to include them
 #as source files for our library, to let cmake automoc process them.
 add_library(qtftp_unit_stub STATIC ${QTFTP_STUBLIB_SOURCE_FILES} ${QTFTP_STUBLIB_INCLUDE_FILES} )
+target_include_directories(qtftp_unit_stub PUBLIC include)
 target_compile_features( qtftp_unit_stub
     PUBLIC
         cxx_override

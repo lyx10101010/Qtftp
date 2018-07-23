@@ -41,7 +41,7 @@ std::shared_ptr<AbstractSocket> UdpSocketStubFactory::createNewSocket(QObject *p
     auto newSocketPtr = std::make_shared<UdpSocketStub>(parent);
     std::weak_ptr<UdpSocketStub> newSocketWeakPtr(newSocketPtr);
     m_socketList.push_back(newSocketWeakPtr);
-    return  std::move( std::static_pointer_cast<AbstractSocket>(newSocketPtr) );
+    return std::static_pointer_cast<AbstractSocket>(newSocketPtr);
 }
 
 

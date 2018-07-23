@@ -48,6 +48,7 @@ class AbstractSocket : public QObject
                           QAbstractSocket::BindMode mode = QAbstractSocket::DefaultForPlatform) = 0;
         virtual qint64 readDatagram(char *data, qint64 maxSize, QHostAddress *address = nullptr, quint16 *port = nullptr) = 0;
         virtual qint64 writeDatagram(const QByteArray &datagram, const QHostAddress &host, quint16 port) = 0;
+        virtual void close() = 0;
 
 
     signals:

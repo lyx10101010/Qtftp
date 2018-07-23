@@ -41,7 +41,7 @@ class TftpServerTest : public QObject
 
     public:
 
-        TftpServerTest() : m_tftpServer(TFTP_TEST_FILES_DIR, m_socketFactory=std::make_shared<UdpSocketStubFactory>(), nullptr)
+        TftpServerTest() : m_tftpServer(m_socketFactory=std::make_shared<UdpSocketStubFactory>(), nullptr)
         {
             if (m_rrqOpcode == 0x0)
             {
@@ -49,10 +49,9 @@ class TftpServerTest : public QObject
             }
             try
             {
-                m_tftpServer.setServerPort(2345);
-                m_tftpServer.bind(QHostAddress::Any);
+                m_tftpServer.bind(TFTP_TEST_FILES_DIR, QHostAddress::Any, 2345);
             }
-            catch(const QTFTP::TftpError &tftpErr)
+            catch(const QTFTP::TftpError &/*tftpErr*/)
             {
                 QFAIL("Main socket bind fail...");
             }
@@ -66,7 +65,6 @@ class TftpServerTest : public QObject
         static uint16_t m_rrqOpcode;
 
     private slots:
-        void instantiating();
         void readRequestSendsNoOutputOnMainSocket();
         void readRequestSendsDataPacketOnSessionSocket();
 };
@@ -74,24 +72,19 @@ class TftpServerTest : public QObject
 uint16_t TftpServerTest::m_rrqOpcode( 0x0 );
 
 
-void TftpServerTest::instantiating()
-{
-    TftpServer tftpServer2("tftp_files_dir", m_socketFactory);  //test overloaded constructor
-}
-
 
 
 void TftpServerTest::readRequestSendsNoOutputOnMainSocket()
 {
     SimulatedNetworkStream &inputNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 2345);
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("16_byte_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
     inputNetworkStream << rrqDatagram;
     SimulatedNetworkStream &outputNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 2345);
-    QCOMPARE(outputNetworkStream.str().size(), (size_t)0);
+    QCOMPARE(outputNetworkStream.str().size(), size_t(0));
 }
 
 
@@ -103,11 +96,11 @@ void TftpServerTest::readRequestSendsDataPacketOnSessionSocket()
     m_socketFactory->setSocketPeer(QHostAddress::Any, 2345, QHostAddress("10.6.11.202"), 1456);
 
     SimulatedNetworkStream &inputNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 2345);
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("16_byte_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
     inputNetworkStream << rrqDatagram;
     //give the (simulated) main socket of our tftp server the peer ip addr and port of a different tftp client
     //so that we can find the created session socket
@@ -116,9 +109,9 @@ void TftpServerTest::readRequestSendsDataPacketOnSessionSocket()
     try
     {
         SimulatedNetworkStream &outputSessionStream = m_socketFactory->getNetworkStreamByDest(UdpSocketStubFactory::StreamDirection::Output, QHostAddress("10.6.11.202"), 1456);
-        QCOMPARE(outputSessionStream.str().size(), (size_t) 20); //output to client should be 2 byte opcoe + 2 byte blocknr + 16 byte file data
+        QCOMPARE(outputSessionStream.str().size(), size_t(20)); //output to client should be 2 byte opcoe + 2 byte blocknr + 16 byte file data
     }
-    catch (std::logic_error &err)
+    catch (std::logic_error &/*err*/)
     {
         QFAIL("Test failed because simulated network stream couldn't be found.");
     }

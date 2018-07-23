@@ -238,4 +238,12 @@ bool UdpSocketStub::bind(const QHostAddress &address, quint16 port, QAbstractSoc
 }
 
 
+void UdpSocketStub::close()
+{
+    m_inputStream.reset();
+    m_outputStream.reset();
+    m_pendingInputDatagrams.clear();
+}
+
+
 } // namespace QTFTP end

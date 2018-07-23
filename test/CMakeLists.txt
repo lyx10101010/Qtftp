@@ -8,4 +8,3 @@ else()
 endif()
 
 add_subdirectory(unit)
-add_subdirectory(proofofconcept)

@@ -36,6 +36,12 @@ std::string SimulatedNetworkStream::str() const
     return m_stream.str();
 }
 
+void SimulatedNetworkStream::reset()
+{
+    m_stream.str(std::string());
+    m_stream.clear();
+}
+
 
 //const std::string &SimulatedNetworkStream::sourceIpAddress() const
 //{

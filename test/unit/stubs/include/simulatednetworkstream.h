@@ -44,14 +44,10 @@ class SimulatedNetworkStream : public QObject
         std::string str() const;
         const std::string &sourceIpAddress() const;
         uint16_t sourcePort() const;
-//        const std::string &destIpAddress() const;
-//        uint16_t destPort() const;
         operator bool() const;
 
-//        void setSourceIpAddress(const std::string &sourceAddress);
-//        void setSourcePort(uint16_t sourcePort);
-//        void setDestIpAddress(const std::string &destAddress);
-//        void setDestPort(uint16_t destPort);
+        void reset();
+
         SimulatedNetworkStream &operator<<(const std::string &outData);
         SimulatedNetworkStream &operator<<(const QByteArray &outData);
         SimulatedNetworkStream &operator>>(QByteArray &outData);
