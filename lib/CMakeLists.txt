@@ -38,27 +38,26 @@ target_link_libraries(Qtftp
         $<$<PLATFORM_ID:Windows>:Ws2_32.lib>
 )
 
-#if (NOT MSVC)
-#    #below is a dummy target to let the header files show up in QtCreator. It can safely be removed if needed.
-#    #add_custom_target(qtftpLibHeaderDummy SOURCES ${QTFTP_INCLUDE_FILES} )
-#endif()
-
-target_compile_features( Qtftp
-    PUBLIC
-        cxx_override
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.9.0")
+    target_compile_features( Qtftp
+        PUBLIC
+            cxx_override
     
-    PRIVATE
-        cxx_auto_type
-        cxx_constexpr
-        cxx_deleted_functions
-        cxx_lambdas
-        cxx_noexcept
-        cxx_strong_enums
-        cxx_uniform_initialization
-        cxx_user_literals
-        cxx_raw_string_literals
-        cxx_std_14
-)
+        PRIVATE
+            cxx_auto_type
+            cxx_constexpr
+            cxx_deleted_functions
+            cxx_lambdas
+            cxx_noexcept
+            cxx_strong_enums
+            cxx_uniform_initialization
+            cxx_user_literals
+            cxx_raw_string_literals
+            cxx_std_14
+    )
+else()
+    target_compile_options(Qtftp PUBLIC "-std=c++14" )
+endif()
 
 #When compiling with MSVC suppress suggestion to use checked iterators, because they are a Microsoft extension
 #also suppress suggestion to use strcpy_s because it is Microsoft specific
