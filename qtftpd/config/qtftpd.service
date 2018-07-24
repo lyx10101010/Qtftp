@@ -1,0 +1,16 @@
+[Unit]
+Description=tftp file server
+After=network.target
+
+
+[Service]
+Type=simple
+User=tftp
+ExecStart=/usr/bin/qtftpd
+Restart=always
+StartLimitInterval=30
+StartLimitBurst=30
+
+
+[Install]
+WantedBy=multi-user.target

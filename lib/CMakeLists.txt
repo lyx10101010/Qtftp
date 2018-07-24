@@ -26,7 +26,7 @@ set( QTFTP_SOURCE_FILES src/udpsocket.cpp
 
 #because the include files are in a different directory than the .cpp files we have to include them
 #as source files for our library, to let cmake automoc process them.
-add_library(Qtftp STATIC ${QTFTP_SOURCE_FILES} ${QTFTP_INCLUDE_FILES} )
+add_library(Qtftp ${QTFTP_SOURCE_FILES} ${QTFTP_INCLUDE_FILES} )
 set_property(TARGET Qtftp PROPERTY VERSION ${QTFTP_VERSION})
 set_property(TARGET Qtftp PROPERTY SOVERSION ${QTFTP_VERSION_MAJOR})
 set_property(TARGET Qtftp PROPERTY DEBUG_POSTFIX d)

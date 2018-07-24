@@ -3,6 +3,8 @@ cmake_policy(SET CMP0048 NEW) #allows to set version in project command
 #cmake_policy(VERSION 3.2)
 project(QTFTP VERSION 1.2.0)
 
+OPTION(BUILD_SHARED_LIBS   "Build all libraries as shared library [default: ON]" ON)
+
 enable_testing()
 
 # Find includes in corresponding build directories
