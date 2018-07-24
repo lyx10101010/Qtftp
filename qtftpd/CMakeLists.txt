@@ -23,3 +23,9 @@ target_compile_features( qtftpd
 )
 
 target_compile_definitions( qtftpd PRIVATE $<$<CONFIG:Debug>:QTFTP_DEBUG_BUILD>)
+
+install(TARGETS qtftpd
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+)
