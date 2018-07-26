@@ -32,8 +32,14 @@
 #include <iostream>
 #include <limits>
 #include <cstdint>
+#ifdef Q_OS_LINUX
+#include <systemd/sd-journal.h>
+#endif
 
 using namespace std::string_literals;
+
+static bool g_disableLogToStderr = false;
+static bool g_disableLogToSystem = false;
 
 struct TftpBindings
 {
@@ -67,7 +73,7 @@ static QVariant getSectionValue(const QSettings &configFile, const QString &sect
     auto keyValue = configFile.value(section + "/" + key);
     if (keyValue.isNull() || !keyValue.isValid())
     {
-        throw std::runtime_error("Config file "s + configFile.fileName().toStdString() + "invalid: '" + key.toStdString() +"' key missing/invalid in section [" + section.toStdString() + ']');
+        throw std::runtime_error("Config file "s + configFile.fileName().toStdString() + " invalid: '" + key.toStdString() +"' key missing/invalid in section [" + section.toStdString() + ']');
     }
     return keyValue;
 }
@@ -103,11 +109,11 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
         uint64_t longportnr = portValue.toULongLong(&conversionOk);
         if (!conversionOk)
         {
-            throw std::runtime_error("Config file "s + fileName.toStdString() + "invalid: 'port' in section [" + nextSection.toStdString() + "] not a valid portnr" );
+            throw std::runtime_error("Config file "s + fileName.toStdString() + " invalid: 'port' in section [" + nextSection.toStdString() + "] not a valid portnr" );
         }
         if (longportnr >  std::numeric_limits<std::uint16_t>::max())
         {
-            throw std::runtime_error("Config file "s + fileName.toStdString() + "invalid: 'port' in section [" + nextSection.toStdString() + "] too large" );
+            throw std::runtime_error("Config file "s + fileName.toStdString() + " invalid: 'port' in section [" + nextSection.toStdString() + "] too large" );
         }
         uint16_t portnr = static_cast<uint16_t>(longportnr);
         auto addrValue = getSectionValue(config, nextSection, "bind_addr");
@@ -115,13 +121,13 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
         bool validAddr = bindAddr.setAddress(addrValue.toString());
         if (!validAddr)
         {
-            throw std::runtime_error("Config file "s + fileName.toStdString() + "invalid: 'bind_addr' in section [" + nextSection.toStdString() + "] not a valid IP address" );
+            throw std::runtime_error("Config file "s + fileName.toStdString() + " invalid: 'bind_addr' in section [" + nextSection.toStdString() + "] not a valid IP address" );
         }
         auto dirValue =  getSectionValue(config, nextSection, "files_dir");
         QFileInfo filesDirInfo(dirValue.toString());
         if (!filesDirInfo.exists() || !filesDirInfo.isDir())
         {
-            throw std::runtime_error("Config file "s + fileName.toStdString() + "invalid: 'files_dir' in section [" + nextSection.toStdString() + "] does not exist or not a directory" );
+            throw std::runtime_error("Config file "s + fileName.toStdString() + " invalid: 'files_dir' in section [" + nextSection.toStdString() + "] does not exist or not a directory" );
         }
         auto uploadValue = getSectionValue(config, nextSection, "disable_upload");
         QString uploadValueStr = uploadValue.toString().toLower();
@@ -136,8 +142,9 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
         }
         else
         {
-            throw std::runtime_error("Config file "s + fileName.toStdString() + "invalid: 'disable_upload' in section [" + nextSection.toStdString() + "] should be 'true' or 'false'" );
+            throw std::runtime_error("Config file "s + fileName.toStdString() + " invalid: 'disable_upload' in section [" + nextSection.toStdString() + "] should be 'true' or 'false'" );
         }
+#ifndef QTFTP_DEBUG_BUILD
         if (uploadDisabled)
         {
             if (filesDirInfo.isWritable())
@@ -145,7 +152,7 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
                 throw std::runtime_error("Config file "s + fileName.toStdString() + ": directory " + filesDirInfo.absoluteFilePath().toStdString() + " in section [" + nextSection.toStdString() + "] set to read-only, but is writable" );
             }
         }
-
+#endif
         bindings.emplace_back(portnr, bindAddr, filesDirInfo.absoluteFilePath(), !uploadDisabled);
     }
 
@@ -153,6 +160,21 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
     return bindings;
 }
 
+
+static void logTftpdError(const QString &msg)
+{
+    if (! g_disableLogToStderr)
+    {
+        std::cerr << msg.toStdString() << std::endl;
+    }
+    if (!g_disableLogToSystem)
+    {
+#ifdef Q_OS_LINUX
+        auto utf8Msg = static_cast<const char*>(msg.toUtf8());
+        sd_journal_print(LOG_ERR, "%s", utf8Msg);
+#endif
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -167,13 +189,22 @@ int main(int argc, char *argv[])
     QCommandLineOption portOption( {"p", "port"}, QObject::tr("UDP port to listen on"), "portValue", "69");
     QCommandLineOption dirOption( {"d", "directory"}, QObject::tr("Directory where to read/write files"), "dirValue" );
     QCommandLineOption configFileOption( {"c", "config"}, QObject::tr("Read configuration from file"), "configValue", "/etc/qtftpd.conf" );
+    QCommandLineOption stderrOption( {"e", "no-stderr"}, QObject::tr("Do not send errors to stderr"));
+    QCommandLineOption systemLogOption( {"s", "no-systemlog"}, QObject::tr("Do not send errors to system log daemon"));
+
 
     parser.addOption(portOption);
     parser.addOption(dirOption);
     parser.addOption(configFileOption);
+    parser.addOption(stderrOption);
+    parser.addOption(systemLogOption);
     parser.process(app);
 
+    g_disableLogToStderr = parser.isSet(stderrOption);
+    g_disableLogToSystem = parser.isSet(systemLogOption);
+
     QTFTP::TftpServer tftpServer(std::make_shared<QTFTP::UdpSocketFactory>(), nullptr);
+    std::vector<TftpBindings> bindings;
 
     if ( parser.isSet(dirOption))
     {
@@ -182,51 +213,42 @@ int main(int argc, char *argv[])
         unsigned int portNr = portValue.toUInt(&portOk);
         if (!portOk || portNr > std::numeric_limits<std::uint16_t>::max())
         {
-            std::cerr << QObject::tr("Error: invalid port number provided.").toStdString() << std::endl;
+            logTftpdError( QObject::tr("Error: invalid port number provided.") );
             return 1;
         }
 
         QString dirValue = parser.value(dirOption);
         if (dirValue.isEmpty())
         {
-            std::cerr << QObject::tr("Error: directory where to read/write files not specified.").toStdString() << std::endl;
+            logTftpdError( QObject::tr("Error: directory where to read/write files not specified.") );
             parser.showHelp(2);
         }
         QFileInfo dirInfo(dirValue);
         if (!dirInfo.exists())
         {
-            std::cerr << QObject::tr("Error: specified files directory does not exist.").toStdString() << std::endl;
+            logTftpdError( QObject::tr("Error: specified files directory does not exist.") );
             return 3;
         }
 
         if (!dirInfo.isReadable())
         {
-            std::cerr << QObject::tr("Error: specified files directory is not readable and/or writable.").toStdString() << std::endl;
+            logTftpdError( QObject::tr("Error: specified files directory is not readable.") );
             return 4;
         }
 
-        try
-        {
-            tftpServer.bind(dirValue, QHostAddress::Any, static_cast<uint16_t>(portNr));
-        }
-        catch(const QTFTP::TftpError &tftpErr)
-        {
-            std::cerr << QObject::tr("Error while binding to UDP port ").toStdString() << portNr << ": " << tftpErr.what() << std::endl;
-            return 5;
-        }
+        bindings.emplace_back(static_cast<uint16_t>(portNr), QHostAddress::LocalHost, dirInfo.absoluteFilePath(), true);
     }
 
     if (parser.isSet(configFileOption))
     {
         auto configFileName = parser.value(configFileOption);
-        std::vector<TftpBindings> bindings;
         try
         {
             bindings = readConfigFile(configFileName);
         }
         catch(const std::runtime_error &configErr)
         {
-            std::cerr << QObject::tr("Error").toStdString() << ": " << configErr.what() << std::endl;
+            logTftpdError( QObject::tr("Error: ") + configErr.what() );
             return 6;
         }
         for (const auto &nextBinding : bindings)
@@ -237,13 +259,17 @@ int main(int argc, char *argv[])
             }
             catch(const QTFTP::TftpError &tftpErr)
             {
-                std::cerr << QObject::tr("Error while binding to address %1 and portNr %s").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr).toStdString() << ": " << tftpErr.what() << std::endl;
+                logTftpdError( QObject::tr("Error while binding to address %1 and portNr %2").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr) + ": " + tftpErr.what() );
                 return 5;
             }
         }
     }
 
-
+    if (bindings.empty())
+    {
+        logTftpdError( QObject::tr("Error: no directorie(s) given to serve files to/from") );
+        return 7;
+    }
 
     int returnCode = 0;
     try
@@ -252,8 +278,8 @@ int main(int argc, char *argv[])
     }
     catch(const QTFTP::TftpError &tftpErr)
     {
-        std::cerr << QObject::tr("qtftpd exited due to exception: ").toStdString() << tftpErr.what() << std::endl;
-        return 6;
+        logTftpdError( QObject::tr("qtftpd exited due to exception: ") + tftpErr.what() );
+        return 8;
     }
 
     return returnCode;

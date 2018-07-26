@@ -5,6 +5,8 @@ project(QTFTP VERSION 1.2.0)
 
 OPTION(BUILD_SHARED_LIBS   "Build all libraries as shared library [default: ON]" ON)
 
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${PROJECT_SOURCE_DIR}/cmake")
+
 enable_testing()
 
 # Find includes in corresponding build directories
@@ -23,6 +25,10 @@ SET (QT_MIN_VERSION "5.6.0")
 find_package(Qt5Core ${QT_MIN_VERSION} REQUIRED)
 find_package(Qt5Network ${QT_MIN_VERSION} REQUIRED)
 find_package(Qt5Test ${QT_MIN_VERSION} REQUIRED)
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    find_package(Systemd 228 REQUIRED)
+endif()
+
 
 get_target_property(QtCore_location Qt5::Core LOCATION)
 message(STATUS "Qt at location: ${QtCore_location} will be used." )

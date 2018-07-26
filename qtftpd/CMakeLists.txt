@@ -4,7 +4,10 @@ project(qtftp_test_proofofconcept_qtftpd)
 
 
 add_executable(qtftpd src/main.cpp)
-target_link_libraries(qtftpd Qtftp)
+target_link_libraries(qtftpd
+                      PUBLIC Qtftp
+                      PRIVATE $<$<PLATFORM_ID:Linux>:Systemd::systemd>
+)
 
 target_compile_features( qtftpd
 
@@ -23,6 +26,7 @@ target_compile_features( qtftpd
 )
 
 target_compile_definitions( qtftpd PRIVATE $<$<CONFIG:Debug>:QTFTP_DEBUG_BUILD>)
+target_compile_definitions( qtftpd PRIVATE QTFTP_DEBUG_BUILD)
 
 install(TARGETS qtftpd
     LIBRARY DESTINATION lib

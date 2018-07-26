@@ -6,10 +6,11 @@ After=network.target
 [Service]
 Type=simple
 User=tftp
-ExecStart=/usr/bin/qtftpd
+ExecStart=/usr/bin/qtftpd -e -c /etc/qtftpd.conf
 Restart=always
 StartLimitInterval=30
 StartLimitBurst=30
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
 
 [Install]
