@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 Type=simple
-#User=tftp
+User=tftp
 ExecStart=/usr/bin/qtftpd -e -c /etc/qtftpd.conf
 Restart=always
 StartLimitInterval=30
