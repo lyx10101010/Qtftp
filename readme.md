@@ -24,6 +24,14 @@ Qtftp has been tested on Linux (x86_64 and arm), OSX 10.10 and Windows 7/10
 See doc/how_to_build.txt
 
 ## Starting the daemon
+On Unix the qtftpd daemon needs elevated rights to open ports below 1024 (default port for TFTP is 69). On Linux it is recommended to give the qtftpd executable the cap_net_bind_service capability with command
+
+```setcap cap_net_bind_service+ep qtftpd```
+
+and run qtftpd as a non-privileged user.
+
+On other Unix flavours you can start qtftpd as root and it will drop privileges and change user to the username passed with the -u option (user 'tftp' by default).
+
 For the simple use case where the TFTP daemon can bind to localhost and serve files from one directory you can start the daemon as:
 
 ```qtftpd [-p portnr] -d <files_directory>```
@@ -33,11 +41,11 @@ If you omit the portnr option, the default TFTP port (69) will be used.
 If you want the TFTP daemon to serve different network addresses from different files directories, you can can start the daemon with a configuration file.
 The configuration file should have a section with name of choice for each binding of the TFTP server. Each section should have the following keys:
 
-```port = <portnr>
-bind_addr = <ip_address or hostname>
-files_dir = <directory where files are downloaded from>
-disable_upload = true
-```
+- ```port = <portnr>```
+- ```bind_addr = <ip_address or hostname>```
+- ```files_dir = <directory where files are downloaded from>```
+- ```disable_upload = true```
+
 The 'disable_upload' key is a future extension. Currently upload of files is not implemented and the 'disable_upload' key should always be set to 'true'.
 
 Start the daemon in this case as:

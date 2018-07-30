@@ -194,8 +194,10 @@ int main(int argc, char *argv[])
     QCommandLineOption configFileOption( {"c", "config"}, QObject::tr("Read configuration from file"), "configValue", "/etc/qtftpd.conf" );
     QCommandLineOption stderrOption( {"e", "no-stderr"}, QObject::tr("Do not send errors to stderr"));
     QCommandLineOption systemLogOption( {"s", "no-systemlog"}, QObject::tr("Do not send errors to system log daemon"));
-
-
+#ifdef Q_OS_UNIX
+    QCommandLineOption userOption( {"u", "user"}, QObject::tr("User to run daemon"), "userValue", "tftp");
+    parser.addOption(userOption);
+#endif
     parser.addOption(portOption);
     parser.addOption(dirOption);
     parser.addOption(configFileOption);
@@ -254,18 +256,6 @@ int main(int argc, char *argv[])
             logTftpdError( QObject::tr("Error: ") + configErr.what() );
             return 6;
         }
-        for (const auto &nextBinding : bindings)
-        {
-            try
-            {
-                tftpServer.bind(nextBinding.m_filesDir, nextBinding.m_bindAddr, nextBinding.m_portNr);
-            }
-            catch(const QTFTP::TftpError &tftpErr)
-            {
-                logTftpdError( QObject::tr("Error while binding to address %1 and portNr %2").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr) + ": " + tftpErr.what() );
-                return 5;
-            }
-        }
     }
 
     if (bindings.empty())
@@ -273,12 +263,30 @@ int main(int argc, char *argv[])
         logTftpdError( QObject::tr("Error: no directorie(s) given to serve files to/from") );
         return 7;
     }
+    for (const auto &nextBinding : bindings)
+    {
+        try
+        {
+            tftpServer.bind(nextBinding.m_filesDir, nextBinding.m_bindAddr, nextBinding.m_portNr);
+        }
+        catch(const QTFTP::TftpError &tftpErr)
+        {
+            logTftpdError( QObject::tr("Error while binding to address %1 and portNr %2").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr) + ": " + tftpErr.what() );
+            return 5;
+        }
+    }
 
-#ifdef Q_OS_LINUX
-    //Recommended way to run qtftp to add CAP_NET_BIND_SERVICE capability to qtftpd executable and run as normal user.
+#ifdef Q_OS_UNIX
+    //Recommended way to run qtftp on Linux is to add CAP_NET_BIND_SERVICE capability to qtftpd executable and run as normal user.
     //If we are running as root, we should drop privileges now that listening socket are opened.
-    const char *tftpUserName = "tftp";
-    auto tftpUser = getpwnam(tftpUserName);
+    auto tftpUserName = parser.value(userOption);
+
+    auto tftpUser = getpwnam(tftpUserName.toStdString().c_str());
+    if (!tftpUser)
+    {
+        logTftpdError( QObject::tr("Error: user %1 not found").arg(tftpUserName));
+        return 8;
+    }
     if (getuid() == 0)
     {
         /* process is running as root, drop privileges */

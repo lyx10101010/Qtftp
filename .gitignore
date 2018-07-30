@@ -163,7 +163,7 @@ pip-log.txt
 .DS_Store
 
 #QtCreator settings file for CMake projects
-CMakeLists.txt.user
+CMakeLists.txt.user*
 
 #Ignore unit test input file that is created during cmake configure
 test/unit/test_files/large_file.txt
