@@ -58,7 +58,7 @@ class Session : public QObject
     Q_OBJECT
 
     public:
-        enum class State { Busy, Finished, InError };
+        enum class State { OptionsNegotation, Busy, Finished, InError };
 
         Session(const QHostAddress &peerAddr, uint16_t peerPort,
                 std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent=nullptr);

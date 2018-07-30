@@ -58,6 +58,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.9.0")
 else()
     target_compile_options(Qtftp PUBLIC "-std=c++14" )
 endif()
+target_compile_options(Qtftp PRIVATE $<$<AND:$<CONFIG:Debug>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-O0> )
 
 #When compiling with MSVC suppress suggestion to use checked iterators, because they are a Microsoft extension
 #also suppress suggestion to use strcpy_s because it is Microsoft specific

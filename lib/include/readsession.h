@@ -1,4 +1,4 @@
-/****************************************************************************
+    /****************************************************************************
 * Copyright (c) Contributors as noted in the AUTHORS file
 *
 * This file is part of QTFTP.
@@ -51,8 +51,10 @@ class ReadSession : public Session
     private:
         void loadNextBlock();
         void sendDataPacket(bool isRetransmit=false);
+        bool handleRrqOptions(const QByteArray &rrqDgram, unsigned int offset);
 
         uint16_t     m_blockNr;
+        unsigned int m_blockSize;
         QByteArray   m_blockToSend;
         QByteArray   m_asciiOverflowBuffer; /// used if block size is exceeded after CR/LF conversions
         char         m_lastCharRead;        ///needed for CR/LF conversion in netascii mode

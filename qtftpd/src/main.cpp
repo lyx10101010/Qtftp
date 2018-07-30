@@ -34,6 +34,9 @@
 #include <cstdint>
 #ifdef Q_OS_LINUX
 #include <systemd/sd-journal.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
 #endif
 
 using namespace std::string_literals;
@@ -271,6 +274,33 @@ int main(int argc, char *argv[])
         return 7;
     }
 
+#ifdef Q_OS_LINUX
+    //Recommended way to run qtftp to add CAP_NET_BIND_SERVICE capability to qtftpd executable and run as normal user.
+    //If we are running as root, we should drop privileges now that listening socket are opened.
+    const char *tftpUserName = "tftp";
+    auto tftpUser = getpwnam(tftpUserName);
+    if (getuid() == 0)
+    {
+        /* process is running as root, drop privileges */
+        if (setgid(tftpUser->pw_gid) != 0)
+        {
+            logTftpdError( QObject::tr("Error dropping group priviliges to groupid %1").arg(tftpUser->pw_gid));
+            return 8;
+        }
+        if (setuid(tftpUser->pw_uid) != 0)
+        {
+            logTftpdError( QObject::tr("Error dropping user priviliges to user %1").arg(tftpUserName));
+            return 8;
+        }
+        //make sure it is not possible to get root privileges back
+        if (setuid(0) != -1)
+        {
+            logTftpdError( QObject::tr("Managed to regain root privileges after dropping them.").arg(tftpUserName));
+            return 8;
+        }
+    }
+#endif
+
     int returnCode = 0;
     try
     {
@@ -279,7 +309,7 @@ int main(int argc, char *argv[])
     catch(const QTFTP::TftpError &tftpErr)
     {
         logTftpdError( QObject::tr("qtftpd exited due to exception: ") + tftpErr.what() );
-        return 8;
+        return 9;
     }
 
     return returnCode;

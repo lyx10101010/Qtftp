@@ -8,7 +8,18 @@ set( AUTOMOC_MOC_OPTIONS "-I${qtftp_SOURCE_DIR}/lib/include" )
 
 
 add_executable(tftpserver_ut  tftpserver_ut.cpp )
+target_compile_definitions(tftpserver_ut PRIVATE -DTFTP_TEST_FILES_DIR=\"${qtftp_test_unit_SOURCE_DIR}/test_files\")
+target_compile_options(tftpserver_ut PRIVATE $<$<AND:$<CONFIG:Debug>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-O0> )
+
 add_executable(readsession_ut readsession_ut.cpp)
+target_compile_definitions(readsession_ut PRIVATE -DTFTP_TEST_FILES_DIR=\"${qtftp_test_unit_SOURCE_DIR}/test_files\")
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    message("Debug build :-)")
+else()
+    message("Not a debug build :-(")
+endif()
+target_compile_options(readsession_ut PRIVATE $<$<AND:$<CONFIG:Debug>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>>:-O0> )
+target_compile_options(readsession_ut PRIVATE -O0 )
 
 set( UNIT_TEST_REQUIRED_LIBS qtftp_unit_stub Qtftp Qt5::Network Qt5::Test ${CMAKE_THREAD_LIBS_INIT} )
 
@@ -70,6 +81,9 @@ if ( CMAKE_HOST_UNIX )
                     RESULT_VARIABLE CHMOD_RESULT
                     ERROR_VARIABLE CHMOD_ERROR )
     message(\"chmod result: \${CHMOD_RESULT}\")
+    if (NOT UT_RESULT EQUAL 0)
+        message(FATAL_ERROR \"ReadSession test failed\")
+    endif()
     ")
 else()
     if ( CMAKE_HOST_WIN32 )

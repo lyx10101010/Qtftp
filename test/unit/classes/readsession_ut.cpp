@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #endif
 #include <thread>
+#include <iostream>
 
 namespace QTFTP
 {
@@ -63,7 +64,7 @@ class ReadSessionTest : public QObject
             SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
             QByteArray sentData;
             outNetworkStream >> sentData;
-            return std::move(sentData);
+            return sentData;
         }
 
         std::shared_ptr<UdpSocketStubFactory> m_socketFactory; //we need to hold on to this to retrieve sockets later
@@ -84,6 +85,7 @@ class ReadSessionTest : public QObject
         void transmitFileSmallerThanOneBlockAscii();
         void transmitFileLargerThanOneBlockAscii();
         void detectSlowNetwork();
+        void transmitOackOnOptionsRrq();
 
 };
 
@@ -100,7 +102,7 @@ static qint64 readBytesFromFile(QByteArray &destination, const QString &fileName
         return -1;
     }
     testFile.seek(offsetInFile);
-    destination.resize( std::min(nrOfBytes, testFile.bytesAvailable()) );
+    destination.resize( static_cast<int>(std::min(nrOfBytes, testFile.bytesAvailable())) );
     auto bytesRead = testFile.read( destination.data(), destination.size() );
     return bytesRead;
 }
@@ -117,17 +119,17 @@ static qint64 readBytesFromFile(QByteArray &destination, const QString &fileName
 void ReadSessionTest::errorOnMailTransferMode()
 {
     //Start to create a datagram with Read Request opcode as first byte
-    QByteArray mailXferModeDatagram  = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray mailXferModeDatagram  = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     mailXferModeDatagram.append("testfile.txt");   //append name of requested file
-    mailXferModeDatagram.append((char)0x0);        //append terminating \0 of filename
+    mailXferModeDatagram.append(char(0x0));        //append terminating \0 of filename
     mailXferModeDatagram.append("Mail");           //append transfer mode
-    mailXferModeDatagram.append((char)0x0);        //append terminating \0 of transfer mode
+    mailXferModeDatagram.append(char(0x0));        //append terminating \0 of transfer mode
 
     //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
     //So it doesn't matter if IP address below is different from your test computer.
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, mailXferModeDatagram);
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0005));              //0x05 == error
     uint16_t errorCode = sentDataAsWords[1];
@@ -141,15 +143,15 @@ void ReadSessionTest::errorOnMailTransferMode()
 
 void ReadSessionTest::errorOnIllegalTransferMode()
 {
-    QByteArray illegalModeDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray illegalModeDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     illegalModeDatagram.append("testfile.txt");    //name of requested file
-    illegalModeDatagram.append((char)0x0);         //terminating \0 of filename
+    illegalModeDatagram.append(char(0x0));         //terminating \0 of filename
     illegalModeDatagram.append("compressed");      //non-existent transfer mode
-    illegalModeDatagram.append((char)0x0);         //terminating \0 of transfer mode
+    illegalModeDatagram.append(char(0x0));         //terminating \0 of transfer mode
 
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, illegalModeDatagram);
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0005));              //0x05 == error
     uint16_t errorCode = sentDataAsWords[1];
@@ -163,17 +165,17 @@ void ReadSessionTest::errorOnIllegalTransferMode()
 
 void ReadSessionTest::errorOnNonExistingFile()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("i_dont_exist.txt"); //name of requested file
-    rrqDatagram.append((char)0x0);          //terminating \0 of filename
+    rrqDatagram.append(char(0x0));          //terminating \0 of filename
     rrqDatagram.append("octet");            //transfer mode
-    rrqDatagram.append((char)0x0);          //terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));          //terminating \0 of transfer mode
 
     //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
     //So it doesn't matter if IP address below is different from your test computer.
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0005));       //0x05 == error
     uint16_t errorCode = sentDataAsWords[1];
@@ -186,18 +188,18 @@ void ReadSessionTest::errorOnNonExistingFile()
 
 
 //NOTE: for this test the file "no_permission.txt" in the test_files directory should NOT be readable for the user
-//      that runs this test
+//      that runs this test (so don't run this as root ;-) )
 void ReadSessionTest::errorOnNonReadableFile()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("no_permission.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0005));        //0x05 == error
     uint16_t errorCode = sentDataAsWords[1];
@@ -215,11 +217,12 @@ void ReadSessionTest::errorOnNonReadableFile()
 
 void ReadSessionTest::transferFileSmallerThanOneBlockBinary()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    std::cerr << "transferFileSmallerThanOneBlockBinary start" << std::endl;
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("16_byte_file.txt");  // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
     //So it doesn't matter if IP address below is different from your test computer.
@@ -227,7 +230,7 @@ void ReadSessionTest::transferFileSmallerThanOneBlockBinary()
 
     QCOMPARE(m_readSession->state(), Session::State::Busy);  //no ack received yet, so session not yet finished
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
     uint16_t blockNr = sentDataAsWords[1];
@@ -242,17 +245,17 @@ void ReadSessionTest::transferFileSmallerThanOneBlockBinary()
 
 void ReadSessionTest::transferFileLargerThanOneBlockBinary()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("600_byte_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
 
     QCOMPARE(m_readSession->state(), Session::State::Busy);
 
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
     uint16_t blockNr = sentDataAsWords[1];
@@ -263,18 +266,18 @@ void ReadSessionTest::transferFileLargerThanOneBlockBinary()
 
     //read the same amount of bytes directly from the test file
     QByteArray fileBlock;
-    int bytesRead = readBytesFromFile(fileBlock, "600_byte_file.txt", 0, TftpBlockSize);
+    auto bytesRead = readBytesFromFile(fileBlock, "600_byte_file.txt", 0, DefaultTftpBlockSize);
     QCOMPARE( bytesRead>0, true); //test for read failure first, because we have to cast bytesRead to unsigned int
-    QCOMPARE((unsigned int)bytesRead, TftpBlockSize);
+    QCOMPARE(bytesRead, DefaultTftpBlockSize);
 
     //and make sure the two byte arrays are the same
     QCOMPARE(sentBlock, fileBlock);
 
     //send ack to readsession
     SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
-    QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     uint16_t ackBlockNr = htons( 0x0001);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
 
     QCOMPARE(m_readSession->state(), Session::State::Busy); // final ack not yet received, so state should still be 'busy'
@@ -291,7 +294,7 @@ void ReadSessionTest::transferFileLargerThanOneBlockBinary()
     //check opcode and block sequence nr in second datagram
     SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
     outNetworkStream >> sentData;
-    sentDataAsWords = (const uint16_t*)sentData.constData(); //sentData was re-allocated so need to update our cast ptr
+    sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData()); //sentData was re-allocated so need to update our cast ptr
     opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
     blockNr = sentDataAsWords[1];
@@ -301,17 +304,17 @@ void ReadSessionTest::transferFileLargerThanOneBlockBinary()
     sentBlock = sentData.right( sentData.size() - 4 );
 
     //read the remaining data from the test file
-    bytesRead = readBytesFromFile(fileBlock, "600_byte_file.txt", TftpBlockSize, TftpBlockSize);
+    bytesRead = readBytesFromFile(fileBlock, "600_byte_file.txt", DefaultTftpBlockSize, DefaultTftpBlockSize);
     QCOMPARE( bytesRead>0, true); //test for read failure first, because we have to cast bytesRead to unsigned int
-    QCOMPARE((unsigned int)bytesRead, 600 - TftpBlockSize);
+    QCOMPARE(bytesRead, 600 - DefaultTftpBlockSize);
 
     //and make sure the two byte arrays are the same
     QCOMPARE(sentBlock, fileBlock);
 
     //send final ack to readsession
-    ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     ackBlockNr = htons(0x0002);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
 
     QCOMPARE(m_readSession->state(), Session::State::Finished);
@@ -320,11 +323,11 @@ void ReadSessionTest::transferFileLargerThanOneBlockBinary()
 
 void ReadSessionTest::transferFileExactMultipleOfBlockSizeBinary()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("1024_byte_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
     //So it doesn't matter if IP address below is different from your test computer.
@@ -333,9 +336,9 @@ void ReadSessionTest::transferFileExactMultipleOfBlockSizeBinary()
 
     //send ack to readsession
     SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
-    QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     uint16_t ackBlockNr = htons( 0x0001);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
     QCOMPARE(m_readSession->state(), Session::State::Busy);
 
@@ -343,8 +346,8 @@ void ReadSessionTest::transferFileExactMultipleOfBlockSizeBinary()
     //check opcode and block sequence nr in second datagram
     SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
     outNetworkStream >> sentData;
-    const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
-    sentDataAsWords = (const uint16_t*)sentData.constData(); //sentData was re-allocated so need to update our cast ptr
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
+    sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData()); //sentData was re-allocated so need to update our cast ptr
     uint16_t opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
     uint16_t blockNr = sentDataAsWords[1];
@@ -353,22 +356,22 @@ void ReadSessionTest::transferFileExactMultipleOfBlockSizeBinary()
 
     //read the same block directly from the test file
     QByteArray expectedBlock;
-    int bytesRead = readBytesFromFile(expectedBlock, "1024_byte_file.txt", TftpBlockSize, TftpBlockSize);
+    auto bytesRead = readBytesFromFile(expectedBlock, "1024_byte_file.txt", DefaultTftpBlockSize, DefaultTftpBlockSize);
     QCOMPARE( bytesRead>0, true); //test for read failure first, because we have to cast bytesRead to unsigned int
-    QCOMPARE((unsigned int)bytesRead, TftpBlockSize);
+    QCOMPARE(bytesRead, DefaultTftpBlockSize);
 
     //and make sure the two byte arrays are the same
     QCOMPARE(sentBlock, expectedBlock);
 
     //send another ack to readsession
-    ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     ackBlockNr = htons( 0x0002);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
 
     //and make sure that we receive an empty data packet to finish the transfer
     outNetworkStream >> sentData;
-    sentDataAsWords = (const uint16_t*)sentData.constData(); //sentData was re-allocated so need to update our cast ptr
+    sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData()); //sentData was re-allocated so need to update our cast ptr
     opCode = sentDataAsWords[0];
     QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
     blockNr = sentDataAsWords[1];
@@ -379,9 +382,9 @@ void ReadSessionTest::transferFileExactMultipleOfBlockSizeBinary()
     QCOMPARE(m_readSession->state(), Session::State::Busy); //final ack not yet received
 
     //send another ack to readsession to confirm receipt of empty data block
-    ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     ackBlockNr = htons( 0x0003);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
 
     outNetworkStream >> sentData;
@@ -395,11 +398,11 @@ void ReadSessionTest::retransmitDataBlockOnTimeout()
     //reduce the timeout value for re-transmission to keep our unit test execution time short
     ReadSession::setRetransmitTimeOut(30);
 
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("600_byte_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("octet");             // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
     //contents of first block already tested in previous tests
@@ -409,36 +412,36 @@ void ReadSessionTest::retransmitDataBlockOnTimeout()
     //test that first block of file was sent again DefaultMaxRetryCount times
     SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
     outNetworkStream >> sentData;
-    if (sentData.size() != DefaultMaxRetryCount*(TftpBlockSize+4))
+    if (sentData.size() != DefaultMaxRetryCount*(DefaultTftpBlockSize+4))
     {
         QString msg = QString("Retransmissions have wrong packet size or wrong nr of retransmissions. Total network output: actual: %2, expected: %3").arg(
-                    QString::number(sentData.size()), QString::number( DefaultMaxRetryCount*(TftpBlockSize+4) ) );
-        QFAIL((const char*)msg.toLatin1());
+                    QString::number(sentData.size()), QString::number( DefaultMaxRetryCount*(DefaultTftpBlockSize+4) ) );
+        QFAIL(static_cast<const char*>(msg.toLatin1()));
     }
     //read the same amount of file bytes that we expect directly from the test file
     QByteArray expectedBlock;
-    int bytesRead = readBytesFromFile(expectedBlock, "600_byte_file.txt", 0, TftpBlockSize);
-    QCOMPARE(bytesRead, (qint64)TftpBlockSize);
+    auto bytesRead = readBytesFromFile(expectedBlock, "600_byte_file.txt", 0, DefaultTftpBlockSize);
+    QCOMPARE(bytesRead, DefaultTftpBlockSize);
 
-    for (int retryCount=1; retryCount<=DefaultMaxRetryCount; ++retryCount)
+    for (unsigned int retryCount=1; retryCount<=DefaultMaxRetryCount; ++retryCount)
     {
-        const uint16_t* sentDataAsWords = (const uint16_t*)sentData.constData();
+        const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
         uint16_t opCode = sentDataAsWords[0];
         QCOMPARE(opCode, htons(0x0003));        //0x03 == data packet
         uint16_t blockNr = sentDataAsWords[1];
         QCOMPARE(blockNr, htons(0x0001));       //0x01 == first data block of requested file
 
         //save the first data block that was sent (for the second time) in a byte array
-        QByteArray sentBlock = sentData.mid( 4, TftpBlockSize );
+        QByteArray sentBlock = sentData.mid( 4, DefaultTftpBlockSize );
 
         //and make sure the two byte arrays are the same
         if (sentBlock != expectedBlock)
         {
             QString msg = QString("Retransmission %1 has wrong data block.").arg(QString::number(retryCount));
-            QFAIL((const char*)msg.toLatin1());
+            QFAIL(static_cast<const char*>(msg.toLatin1()));
         }
 
-        sentData = sentData.mid(TftpBlockSize+4); //remove the packet that we just checked from the network output
+        sentData = sentData.mid(DefaultTftpBlockSize+4); //remove the packet that we just checked from the network output
     }
 
     QCOMPARE(sentData.size(), 0); //check that data block was retransmitted no more than DefaultMaxRetryCount times
@@ -450,11 +453,11 @@ void ReadSessionTest::retransmitDataBlockOnTimeout()
 
 void ReadSessionTest::transmitFileSmallerThanOneBlockAscii()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("different_line_endings.txt");  // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("netascii");          // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
     //So it doesn't matter if IP address below is different from your test computer.
@@ -470,11 +473,11 @@ void ReadSessionTest::transmitFileSmallerThanOneBlockAscii()
 
 void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("different_line_endings_2blocks.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("netascii");          // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
 
@@ -483,17 +486,17 @@ void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
 
     //read the expected block contents from file and make sure transmitted block is identical
     QByteArray expectedHexArray;
-    //we have to read TftpBlockSize*2 characters from hex file because each byte is dumped as two ascii characters (0-9,A-F)
-    int bytesRead = readBytesFromFile(expectedHexArray, "different_line_endings_2blocks_asciitransfer_block1_expected.txt", 0, TftpBlockSize*2);
+    //we have to read DefaultTftpBlockSize*2 characters from hex file because each byte is dumped as two ascii characters (0-9,A-F)
+    auto bytesRead = readBytesFromFile(expectedHexArray, "different_line_endings_2blocks_asciitransfer_block1_expected.txt", 0, DefaultTftpBlockSize*2);
     QCOMPARE( bytesRead>0, true);
     QByteArray expectedBlock = QByteArray::fromHex(expectedHexArray);
     QCOMPARE(sentBlock, expectedBlock);
 
     //send ACK for first data block to read session so that 2nd block will be transferred
     SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
-    QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+    QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
     uint16_t ackBlockNr = htons( 0x0001);
-    ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
     inNetworkStream << ackDatagram;
     SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
     outNetworkStream >> sentData;
@@ -502,7 +505,7 @@ void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
     sentBlock = sentData.right( sentData.size() - 4 );
 
     //read the expected contents for block 2 from file and make sure transmitted block is identical
-    bytesRead = readBytesFromFile(expectedHexArray, "different_line_endings_2blocks_asciitransfer_block2_expected.txt", 0, TftpBlockSize*2);
+    bytesRead = readBytesFromFile(expectedHexArray, "different_line_endings_2blocks_asciitransfer_block2_expected.txt", 0, DefaultTftpBlockSize*2);
     QCOMPARE( bytesRead>0, true);
     expectedBlock = QByteArray::fromHex(expectedHexArray);
     QCOMPARE(sentBlock, expectedBlock);
@@ -510,11 +513,11 @@ void ReadSessionTest::transmitFileLargerThanOneBlockAscii()
 
 void ReadSessionTest::detectSlowNetwork()
 {
-    QByteArray rrqDatagram = QByteArray::fromRawData((char*)&m_rrqOpcode, sizeof(m_rrqOpcode));
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("large_file.txt"); // name of requested file
-    rrqDatagram.append((char)0x0);           // terminating \0 of filename
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
     rrqDatagram.append("netascii");          // transfer mode
-    rrqDatagram.append((char)0x0);           // terminating \0 of transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
 
     bool signalEmitted = false;
     QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
@@ -527,9 +530,9 @@ void ReadSessionTest::detectSlowNetwork()
         //sleep 1 ms to simulate somewhat slow network
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1ms);
-        QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+        QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
         uint16_t ackBlockNr = htons(i);
-        ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+        ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
         inNetworkStream << ackDatagram;
         outNetworkStream >> sentData;
     }
@@ -542,15 +545,78 @@ void ReadSessionTest::detectSlowNetwork()
         //sleep 10 ms to simulate slow network
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(10ms);
-        QByteArray ackDatagram = QByteArray::fromRawData((char*)&m_ackOpcode, sizeof(m_ackOpcode));
+        QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
         uint16_t ackBlockNr = htons(i);
-        ackDatagram.append((const char*)&ackBlockNr, sizeof(ackBlockNr));
+        ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
         inNetworkStream << ackDatagram;
         outNetworkStream >> sentData;
     }
 
     //Now the average respons time should have dropped enough to emit slowNetwork signal
     QCOMPARE(signalEmitted, true);
+}
+
+void ReadSessionTest::transmitOackOnOptionsRrq()
+{
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
+    rrqDatagram.append("16_byte_file.txt");  // name of requested file
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
+    rrqDatagram.append("octet");             // transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
+    rrqDatagram.append("blksize");           // name of blocksize option
+    rrqDatagram.append(char(0x0));           // terminating \0 of blocksize option name
+    rrqDatagram.append("1024");              // value of blocksize option
+    rrqDatagram.append(char(0x0));           // terminating \0 of blocksize option value
+    rrqDatagram.append("timeout");           // name of timeout option
+    rrqDatagram.append(char(0x0));           // terminating \0 of timeout option name
+    rrqDatagram.append("1");                 // value of timeout option
+    rrqDatagram.append(char(0x0));           // terminating \0 of timeout option value
+    rrqDatagram.append("tsize");             // name of transfer size option
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer size option name
+    rrqDatagram.append("0");                 // value of tsize option
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer size option value
+
+    //Note: IP address passed to createReadSessionAndReturnNetworkResponse is not used because we use stub socket classes.
+    //So it doesn't matter if IP address below is different from your test computer.
+    QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
+
+    QCOMPARE(m_readSession->state(), Session::State::OptionsNegotation);  //readsession waiting for client to acknowledge Oack
+    QCOMPARE(sentData.size() == 34, true);
+
+    const uint16_t* sentDataAsWords = reinterpret_cast<const uint16_t*>(sentData.constData());
+    uint16_t opCode = sentDataAsWords[0];
+    QCOMPARE(opCode, htons(0x0006));        //0x06 == Options Acknowledgement
+    int offset = 2;
+    bool blockSizeAck=false, timeoutAck=false, tsizeAck=false;
+    while (offset < sentData.size())
+    {
+        QString option1Name( sentData.constData() + offset);
+        offset += option1Name.size() + 1;
+        QString option1Value = sentData.constData()+ offset;
+        offset += option1Value.size() + 1;
+
+        auto fileSize = QFileInfo(QDir(TFTP_TEST_FILES_DIR), "16_byte_file.txt").size();
+        if (option1Name == "blksize")
+        {
+            QCOMPARE(blockSizeAck, false); //option should be acknowledged only once
+            QCOMPARE(option1Value, QString("1024"));
+            blockSizeAck=true;
+        }
+        else if (option1Name == "timeout")
+        {
+            QCOMPARE(timeoutAck, false);
+            QCOMPARE(option1Value, QString("1"));
+            timeoutAck = true;
+        }
+        else if (option1Name == "tsize")
+        {
+            QCOMPARE(tsizeAck, false);
+            QCOMPARE(option1Value, QString::number(fileSize));
+            tsizeAck = true;
+        }
+    }
+
+    QCOMPARE(timeoutAck && blockSizeAck && tsizeAck, true);
 
 }
 

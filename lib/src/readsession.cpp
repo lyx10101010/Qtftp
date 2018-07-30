@@ -58,17 +58,19 @@ static constexpr unsigned int PopulationForAckTimeAverage = 20;
 ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteArray rrqDatagram,
                          QString filesDir, unsigned int slowNetworkThresholdUs, std::shared_ptr<UdpSocketFactory> socketFactory) : Session(peerAddr, peerPort, socketFactory),
                                                                                               m_blockNr(0),
+                                                                                              m_blockSize(DefaultTftpBlockSize),
                                                                                               m_lastCharRead('\0'),
                                                                                               m_slowNetworkReported(false),
                                                                                               m_slowNetworkThresholdUs(slowNetworkThresholdUs)
 {
     assert( ntohs( readWordInByteArray(rrqDatagram, 0) ) == TftpCode::TFTP_RRQ );
 
-
-    QString recvdFileName = QString(rrqDatagram.data() + 2);
+    unsigned int rrqOffset = 2;
+    QString recvdFileName = QString(rrqDatagram.data() + rrqOffset);
     setFilePath(filesDir, recvdFileName);
+    rrqOffset += static_cast<unsigned int>(recvdFileName.length()) + 1;
 
-    QString mode = QString( rrqDatagram.data() + 2 + recvdFileName.length() + 1 ).toLower();
+    QString mode = QString( rrqDatagram.data() + rrqOffset ).toLower();
 
     if ( mode == "netascii" )
     {
@@ -96,6 +98,7 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
         return;
         //TODO: destroy read session after return
     }
+    rrqOffset += static_cast<unsigned int>(mode.length()) + 1;
 
     if ( ! fileExists() )
     {
@@ -114,11 +117,96 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
         //TODO: destroy read session after return
     }
 
-    loadNextBlock();
-
-    sendDataPacket();
+    auto waitForOAck = handleRrqOptions(rrqDatagram, rrqOffset);
+    if (!waitForOAck)
+    {
+        loadNextBlock();
+        sendDataPacket();
+    }
 }
 
+
+/**
+ * @brief handle options appended after TFTP RRQ according to RFC2347
+ * @param rrqDgram tftp Read Request datagram
+ * @param offset offset where possible options start
+ * @return true if options were present and an OACK was sent. False if no (recognised) options were present.
+ *
+ * The format of an OACK payload to acknowledge two options is this:
+ * <pre>
+ *   2 bytes      string     1 byte   string    1 byte   string    1 byte   string   1 byte
+ *   --------------------------------------------------------------------------------------
+ *   06 (OACK) |  optionName | 0  | optionValue  | 0 |  optionName | 0 | optionValue  | 0 |
+ *   --------------------------------------------------------------------------------------
+ * </pre>
+ */
+bool ReadSession::handleRrqOptions(const QByteArray &rrqDgram, unsigned int offset)
+{
+    unsigned int maxOffset = static_cast<unsigned int>(rrqDgram.size()) - 1;
+    uint16_t oackOpCode(TftpCode::TFTP_OACK);
+    uint16_t tempWord( htons(oackOpCode) );
+    QByteArray oackDatagram = QByteArray::fromRawData( reinterpret_cast<char*>(&tempWord), sizeof(tempWord) );
+    while (offset < maxOffset)
+    {
+        QString optionName = QString(rrqDgram.data() + offset).toLower();
+        offset += static_cast<unsigned int>(optionName.size()) + 1;
+        QString optionValueStr = QString(rrqDgram.data() + offset);
+        if (optionName == "blksize")
+        {
+            //RFC2348
+            bool convOk;
+            unsigned int blockSize = optionValueStr.toUInt(&convOk, 10);
+            if (!convOk || blockSize<8 || blockSize>65464)
+            {
+                continue;
+            }
+            m_blockSize = blockSize;
+            oackDatagram.append(static_cast<const char*>(optionName.toLatin1()));
+            oackDatagram.append(char(0x0));
+            oackDatagram.append(static_cast<const char*>(optionValueStr.toLatin1()));
+            oackDatagram.append(char(0x0));
+        }
+        else if (optionName == "timeout")
+        {
+            //RFC2349
+            bool convOk;
+            unsigned int retransmitTimeout = optionValueStr.toUInt(&convOk, 10);
+            if (!convOk || retransmitTimeout<1 || retransmitTimeout>255)
+            {
+                continue;
+            }
+            setRetransmitTimeOut(retransmitTimeout * 1000);
+            oackDatagram.append(static_cast<const char*>(optionName.toLatin1()));
+            oackDatagram.append(char(0x0));
+            oackDatagram.append(static_cast<const char*>(optionValueStr.toLatin1()));
+            oackDatagram.append(char(0x0));
+        }
+        else if (optionName == "tsize")
+        {
+            //RFC2349
+            bool convOk;
+            unsigned int tsize = optionValueStr.toUInt(&convOk, 10);
+            if (!convOk || tsize != 0)
+            {
+                continue;
+            }
+            oackDatagram.append(static_cast<const char*>(optionName.toLatin1()));
+            oackDatagram.append(char(0x0));
+            QString fileSizeStr = QString::number(fileSize(), 10);
+            oackDatagram.append(static_cast<const char*>(fileSizeStr.toLatin1()));
+            oackDatagram.append(char(0x0));
+        }
+    }
+
+    if (static_cast<unsigned long>(oackDatagram.size()) > sizeof(u_int16_t))
+    {
+        sendDatagram(oackDatagram, false); //TODO: start retransmit timer after OACK sent ?
+        setState(State::OptionsNegotation);
+        return true;
+    }
+
+    return false;
+}
 
 /**
  * @brief ReadSession::averageAckDelayMs calculate average time between sending data package and receiving its ACK datagram
@@ -132,7 +220,7 @@ unsigned ReadSession::averageAckDelayUs() const
     }
     auto delaySum = std::accumulate(m_ackTimes.begin(), m_ackTimes.end(), 0);
     float averageDelay = delaySum / static_cast<float>(m_ackTimes.size());
-    return static_cast<unsigned int>(averageDelay + 0.5);
+    return static_cast<unsigned int>(averageDelay + 0.5f);
 }
 
 
@@ -158,17 +246,33 @@ void ReadSession::dataReceived()
         return;
     }
 
-    //a ReadSession should only receive ACK datagrams
-    QByteArray ackDatagram;
-    readDatagram(ackDatagram);
-    if (ackDatagram.size() < 4)
+    QByteArray datagram;
+    readDatagram(datagram);
+
+    uint16_t opCode =  ntohs( reinterpret_cast<uint16_t*>(datagram.data())[0] );
+    if (state() == State::OptionsNegotation)
+    {
+        if (opCode == TftpCode::TFTP_ERROR)
+        {
+            uint16_t errCode =  ntohs( reinterpret_cast<uint16_t*>(datagram.data())[1] );
+            if (errCode == TftpCode::OptionNegotiationAbort || errCode == TftpCode::DiskFull)
+            {
+                //client aborted the transfer during options negatiation
+                setState(State::Finished);
+                return;
+            }
+        }
+    }
+
+    // From here ReadSession should only receive ACK datagrams
+    if (datagram.size() < 4)
     {
         setState(State::InError);
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::Undefined, "Malformed datagram");
         sendDatagram(errorDgram);
         return;
     }
-    int16_t opCode =  ntohs( ((uint16_t*)ackDatagram.data())[0] );
+
     if (opCode != TftpCode::TFTP_ACK)
     {
         setState(State::InError);
@@ -180,7 +284,7 @@ void ReadSession::dataReceived()
     //we received an ACK, so stop re-transmit timer
     stopRetransmitTimer();
 
-    uint16_t ackBlockNr =  ntohs( ((uint16_t*)ackDatagram.data())[1] );
+    uint16_t ackBlockNr =  ntohs( reinterpret_cast<uint16_t*>(datagram.data())[1] );
     //static auto lastSend = std::chrono::high_resolution_clock::now();
     //auto currTime = std::chrono::high_resolution_clock::now();
     //std::cerr <<  std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count()  << ": received ack " << ackBlockNr << "after "
@@ -200,9 +304,13 @@ void ReadSession::dataReceived()
         return;
     }
 
-    //valid ACK received, this transfer is finished when the last block that was sent is less than the maximum block size
-    if (m_blockToSend.size() < TftpBlockSize)
+    if (state() == State::OptionsNegotation)
     {
+        setState(State::Busy);
+    }
+    else if (static_cast<unsigned int>(m_blockToSend.size()) < m_blockSize)
+    {
+        //valid ACK received, this transfer is finished when the last block that was sent is less than the maximum block size
         setState(State::Finished);
         return;
     }
@@ -223,7 +331,7 @@ void ReadSession::dataReceived()
         {
             ackTimeus = 0;
         }
-        m_ackTimes.push_back(ackTimeus);
+        m_ackTimes.push_back(static_cast<unsigned int>(ackTimeus));
         if ( (m_blockNr % 5 == 0) &&
              (averageAckDelayUs() > m_slowNetworkThresholdUs) )
         {
@@ -247,6 +355,7 @@ void ReadSession::dataReceived()
  */
 void ReadSession::retransmitData()
 {
+    //TODO: when state is optionsNegotation re-send OACK
     sendDataPacket(true);
 }
 
@@ -280,7 +389,7 @@ void ReadSession::loadNextBlock()
         lineEndConversionStartIndex = m_blockToSend.size();
     }
 
-    if ( ! readFromFile(m_blockToSend, TftpBlockSize))
+    if ( ! readFromFile(m_blockToSend, m_blockSize))
     {
         throw TftpError("Read error while reading from file "s + filePath().toStdString());
     }
@@ -290,13 +399,13 @@ void ReadSession::loadNextBlock()
         //convert line endings and CR char, making sure that block size is not exceeded
         for (int index=lineEndConversionStartIndex; index<m_blockToSend.size(); ++index)
         {
-            if ( ((char)m_blockToSend[index]) == 0x0D )
+            if ( static_cast<char>(m_blockToSend[index]) == 0x0D )
             {
                 //convert CR -> CR,0
                 ++index;
                 m_blockToSend.insert(index, '\0');
             }
-            else if ( ((char)m_blockToSend[index]) == 0x0A)
+            else if ( static_cast<char>(m_blockToSend[index]) == 0x0A)
             {
                 //convert LF -> CR,LF
                 m_blockToSend.insert(index, 0x0D);
@@ -306,9 +415,9 @@ void ReadSession::loadNextBlock()
 
         //If m_blockToSend became bigger than TftpBlockSize due to linefeed conversions,
         //store the surplus in an overflow buffer for the next block.
-        if (m_blockToSend.size() > TftpBlockSize)
+        if (static_cast<unsigned int>(m_blockToSend.size()) > m_blockSize)
         {
-            int surplusNrOfChars = m_blockToSend.size() - TftpBlockSize;
+            int surplusNrOfChars = m_blockToSend.size() - static_cast<int>(m_blockSize);
             m_asciiOverflowBuffer = m_blockToSend.right(surplusNrOfChars);
             m_blockToSend.chop(surplusNrOfChars);
         }
@@ -327,22 +436,24 @@ void ReadSession::sendDataPacket(bool isRetransmit)
 {
     uint16_t dataOpCode(TftpCode::TFTP_DATA);
     uint16_t tempWord( htons(dataOpCode) );
-    QByteArray datagram = QByteArray::fromRawData( (char*)&tempWord, sizeof(tempWord) );
+    QByteArray datagram = QByteArray::fromRawData( reinterpret_cast<char*>(&tempWord), sizeof(tempWord) );
     if (! isRetransmit)
     {
         ++m_blockNr;
     }
     uint16_t tempWord2 = htons(m_blockNr); //don't re-use tempWord because QByteArray::fromRawData makes a shallow copy
-    datagram.append( (char*)&tempWord2, sizeof(tempWord2) );
+    datagram.append( reinterpret_cast<char*>(&tempWord2), sizeof(tempWord2) );
     datagram.append( m_blockToSend );
-    assert( datagram.size() <= (TftpBlockSize + 4) );
+    assert( static_cast<unsigned int>(datagram.size()) <= (m_blockSize + 4) );
 
     m_previousSendTime = std::chrono::high_resolution_clock::now();
     sendDatagram(datagram, true);
-    unsigned int progressPerc = (unsigned int)(float(posInFile()) / fileSize() * 100.0f + 0.5);
+    unsigned int progressPerc = static_cast<unsigned int>(float(posInFile()) / fileSize() * 100.0f + 0.5f);
     assert(progressPerc <= 100);
     emit progress(progressPerc);
 }
+
+
 
 
 } // QTFTP namespace end

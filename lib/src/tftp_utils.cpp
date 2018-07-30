@@ -43,11 +43,11 @@ QByteArray assembleTftpErrorDatagram(TftpCode::ErrorCode ec, const QString &errM
     QByteArray dgram;
     dgram.fill('\0', errMsg.length() + 5 );
 
-    assignWordInByteArray(dgram, 0, htons((uint16_t)TftpCode::TFTP_ERROR));
-    assignWordInByteArray(dgram, 2, htons((uint16_t)ec));
+    assignWordInByteArray(dgram, 0, htons(uint16_t(TftpCode::TFTP_ERROR)));
+    assignWordInByteArray(dgram, 2, htons(uint16_t(ec)));
 
-    strcpy( dgram.data() + 4, (const char*)errMsg.toLatin1() );
-    return std::move(dgram);
+    strcpy( dgram.data() + 4, static_cast<const char*>(errMsg.toLatin1()) );
+    return dgram;
 }
 
 

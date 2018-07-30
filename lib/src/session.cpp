@@ -49,11 +49,11 @@ unsigned int Session::m_maxRetransmissions = DefaultMaxRetryCount;
 
 Session::Session(const QHostAddress &peerAddr, uint16_t peerPort,
                  std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent) : QObject(parent),
+                                                                    m_file(nullptr),
                                                                     m_sessionSocket(socketFactory->createNewSocket()),
                                                                     m_retransmitCount(0),
                                                                     m_peerIdent(peerAddr, peerPort),
                                                                     m_transferMode(TftpCode::Octet),
-                                                                    m_file(nullptr),
                                                                     m_state(State::Busy)
 {
     //port==0 means: choose random free port
@@ -76,7 +76,7 @@ Session::State Session::state() const
 
 QString Session::filePath() const
 {
-    return std::move(m_file.fileName());
+    return m_file.fileName();
 }
 
 
@@ -111,7 +111,7 @@ quint16 Session::localPort() const
 
 QString Session::lastFileError() const
 {
-    return std::move(m_file.errorString());
+    return m_file.errorString();
 }
 
 

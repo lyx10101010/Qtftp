@@ -36,7 +36,8 @@ struct TftpCode
             TFTP_WRQ,		//!< Write request
             TFTP_DATA,		//!< Data packet
             TFTP_ACK,		//!< Acknowledge
-            TFTP_ERROR		//!< Error
+            TFTP_ERROR,		//!< Error
+            TFTP_OACK       //!< Option Acknowledge
         };
 
         //! List of error codes which can be found in a TFtp error datagram
@@ -49,7 +50,8 @@ struct TftpCode
             IllegalOp,	//!< Illegal TFTP operation.
             UnknownTID,	//!< Unknown transfer ID.
             FileExists,	//!< File already exists.
-            NoUser		//!< No such user.
+            NoUser,		//!< No such user.
+            OptionNegotiationAbort  //!< Transfer aborted during option negotiation
         };
 
         //! List of transfer modes
@@ -63,7 +65,7 @@ struct TftpCode
 };
 
 
-constexpr unsigned int TftpBlockSize = 512;
+constexpr unsigned int DefaultTftpBlockSize = 512;
 constexpr unsigned int DefaultRetransmitTimeOutms = 5000;
 constexpr unsigned int DefaultMaxRetryCount = 3;
 

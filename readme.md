@@ -1,7 +1,15 @@
 # Qtftp
 
 Qtftp is a TFTP library and daemon that uses the Qt cross-platform library.
-It implements the basic TFTP functionality specified by RFC1350, but currently only the server side.
+It implements the TFTP functionality specified by 
+
+- RFC1350 (TFTP Protocol rev. 2)
+- RFC2347 (TFTP Option extension)
+- RFC2348 (TFTP BLocksize Option)
+- RFC2349 (TFTP Timeout Interval and Transfer Size Options)
+
+
+Currently only the server side is implemented.
 Only file download is supported at this moment, but this covers the majority of use cases in embedded systems, where TFTP is often used to download firmware.
 
 Qtftp is a complete rewrite and port to qt5 of libtftp that was written by Diego Elio Pettenò (see https://www.flameeyes.eu/oldstuff).
@@ -10,7 +18,7 @@ Qtftp is a complete rewrite and port to qt5 of libtftp that was written by Diego
 Qtftp is licensed under LGPL 2.1. See file COPYING for the text of the license.
 
 ## Supported platforms
-Qtftp has been tested on Linux (x86_64 and arm), OSX 10.10 and Windows 7
+Qtftp has been tested on Linux (x86_64 and arm), OSX 10.10 and Windows 7/10
 
 ## build instructions
 See doc/how_to_build.txt
