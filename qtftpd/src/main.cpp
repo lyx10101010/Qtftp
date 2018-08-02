@@ -19,6 +19,7 @@
 ****************************************************************************/
 
 #include "tftpserver.h"
+#include "readsession.h"
 #include "udpsocketfactory.h"
 #include "tftp_error.h"
 #include <QCoreApplication>
@@ -164,7 +165,7 @@ static std::vector<TftpBindings> readConfigFile(const QString &fileName)
 }
 
 
-static void logTftpdError(const QString &msg)
+static void logTftpdMsg(int severity, const QString &msg)
 {
     if (! g_disableLogToStderr)
     {
@@ -174,7 +175,7 @@ static void logTftpdError(const QString &msg)
     {
 #ifdef Q_OS_LINUX
         auto utf8Msg = static_cast<const char*>(msg.toUtf8());
-        sd_journal_print(LOG_ERR, "%s", utf8Msg);
+        sd_journal_print(severity, "%s", utf8Msg);
 #endif
     }
 }
@@ -218,26 +219,26 @@ int main(int argc, char *argv[])
         unsigned int portNr = portValue.toUInt(&portOk);
         if (!portOk || portNr > std::numeric_limits<std::uint16_t>::max())
         {
-            logTftpdError( QObject::tr("Error: invalid port number provided.") );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error: invalid port number provided.") );
             return 1;
         }
 
         QString dirValue = parser.value(dirOption);
         if (dirValue.isEmpty())
         {
-            logTftpdError( QObject::tr("Error: directory where to read/write files not specified.") );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error: directory where to read/write files not specified.") );
             parser.showHelp(2);
         }
         QFileInfo dirInfo(dirValue);
         if (!dirInfo.exists())
         {
-            logTftpdError( QObject::tr("Error: specified files directory does not exist.") );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error: specified files directory does not exist.") );
             return 3;
         }
 
         if (!dirInfo.isReadable())
         {
-            logTftpdError( QObject::tr("Error: specified files directory is not readable.") );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error: specified files directory is not readable.") );
             return 4;
         }
 
@@ -253,14 +254,14 @@ int main(int argc, char *argv[])
         }
         catch(const std::runtime_error &configErr)
         {
-            logTftpdError( QObject::tr("Error: ") + configErr.what() );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error: ") + configErr.what() );
             return 6;
         }
     }
 
     if (bindings.empty())
     {
-        logTftpdError( QObject::tr("Error: no directorie(s) given to serve files to/from") );
+        logTftpdMsg(LOG_ERR, QObject::tr("Error: no directorie(s) given to serve files to/from") );
         return 7;
     }
     for (const auto &nextBinding : bindings)
@@ -271,10 +272,22 @@ int main(int argc, char *argv[])
         }
         catch(const QTFTP::TftpError &tftpErr)
         {
-            logTftpdError( QObject::tr("Error while binding to address %1 and portNr %2").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr) + ": " + tftpErr.what() );
+            logTftpdMsg(LOG_ERR, QObject::tr("Error while binding to address %1 and portNr %2").arg(nextBinding.m_bindAddr.toString()).arg(nextBinding.m_portNr) + ": " + tftpErr.what() );
             return 5;
         }
     }
+
+    //report successful or failed file download
+    QObject::connect(&tftpServer, &QTFTP::TftpServer::newReadSession, [](std::shared_ptr<const QTFTP::ReadSession> newReadSession)
+                                                                      { QObject::connect(newReadSession.get(), &QTFTP::ReadSession::finished, [newReadSession]()
+                                                                                                                                              {
+                                                                                                                                                  logTftpdMsg(LOG_INFO, QObject::tr("Download of file %1 by %2 finished").arg(newReadSession->filePath()).arg(newReadSession->peerIdent().m_address.toString()));
+                                                                                                                                              });
+                                                                        QObject::connect(newReadSession.get(), &QTFTP::ReadSession::error, [newReadSession]()
+                                                                                                                                              {
+                                                                                                                                                  logTftpdMsg(LOG_ERR, QObject::tr("Download of file %1 by %2 failed").arg(newReadSession->filePath()).arg(newReadSession->peerIdent().m_address.toString()));
+                                                                                                                                              });
+                                                                      });
 
 #ifdef Q_OS_UNIX
     //Recommended way to run qtftp on Linux is to add CAP_NET_BIND_SERVICE capability to qtftpd executable and run as normal user.
@@ -284,7 +297,7 @@ int main(int argc, char *argv[])
     auto tftpUser = getpwnam(tftpUserName.toStdString().c_str());
     if (!tftpUser)
     {
-        logTftpdError( QObject::tr("Error: user %1 not found").arg(tftpUserName));
+        logTftpdMsg(LOG_ERR, QObject::tr("Error: user %1 not found").arg(tftpUserName));
         return 8;
     }
     if (getuid() == 0)
@@ -292,18 +305,18 @@ int main(int argc, char *argv[])
         /* process is running as root, drop privileges */
         if (setgid(tftpUser->pw_gid) != 0)
         {
-            logTftpdError( QObject::tr("Error dropping group priviliges to groupid %1").arg(tftpUser->pw_gid));
+            logTftpdMsg(LOG_ERR, QObject::tr("Error dropping group priviliges to groupid %1").arg(tftpUser->pw_gid));
             return 8;
         }
         if (setuid(tftpUser->pw_uid) != 0)
         {
-            logTftpdError( QObject::tr("Error dropping user priviliges to user %1").arg(tftpUserName));
+            logTftpdMsg(LOG_ERR, QObject::tr("Error dropping user priviliges to user %1").arg(tftpUserName));
             return 8;
         }
         //make sure it is not possible to get root privileges back
         if (setuid(0) != -1)
         {
-            logTftpdError( QObject::tr("Managed to regain root privileges after dropping them.").arg(tftpUserName));
+            logTftpdMsg(LOG_ERR, QObject::tr("Managed to regain root privileges after dropping them.").arg(tftpUserName));
             return 8;
         }
     }
@@ -316,7 +329,7 @@ int main(int argc, char *argv[])
     }
     catch(const QTFTP::TftpError &tftpErr)
     {
-        logTftpdError( QObject::tr("qtftpd exited due to exception: ") + tftpErr.what() );
+        logTftpdMsg(LOG_ERR, QObject::tr("qtftpd exited due to exception: ") + tftpErr.what() );
         return 9;
     }
 
