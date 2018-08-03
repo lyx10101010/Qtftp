@@ -253,11 +253,11 @@ void Session::handleExpiredRetransmitTimer()
     }
 
     //max nr of retransmissions reached
-    setState(State::InError);
+    setState(State::InError, QObject::tr("Maximum nr of re-transmissions reached"));
 }
 
 
-void Session::setState(Session::State newState)
+void Session::setState(Session::State newState, QString msg)
 {
     m_state = newState;
     if (m_state == State::Finished)
@@ -266,7 +266,7 @@ void Session::setState(Session::State newState)
     }
     else if (m_state == State::InError)
     {
-        emit error();
+        emit error(msg);
     }
 }
 

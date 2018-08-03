@@ -283,9 +283,9 @@ int main(int argc, char *argv[])
                                                                                                                                               {
                                                                                                                                                   logTftpdMsg(LOG_INFO, QObject::tr("Download of file %1 by %2 finished").arg(newReadSession->filePath()).arg(newReadSession->peerIdent().m_address.toString()));
                                                                                                                                               });
-                                                                        QObject::connect(newReadSession.get(), &QTFTP::ReadSession::error, [newReadSession]()
+                                                                        QObject::connect(newReadSession.get(), &QTFTP::ReadSession::error, [newReadSession](QString errMsg)
                                                                                                                                               {
-                                                                                                                                                  logTftpdMsg(LOG_ERR, QObject::tr("Download of file %1 by %2 failed").arg(newReadSession->filePath()).arg(newReadSession->peerIdent().m_address.toString()));
+                                                                                                                                                  logTftpdMsg(LOG_ERR, QObject::tr("Download of file %1 by %2 failed: %3").arg(newReadSession->filePath()).arg(newReadSession->peerIdent().m_address.toString()).arg(errMsg));
                                                                                                                                               });
                                                                       });
 

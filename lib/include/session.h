@@ -88,7 +88,7 @@ class Session : public QObject
 
         void setTransferMode(TftpCode::Mode newMode);
         void setFilePath(const QString &directory, const QString &fileName);
-        void setState(State newState);
+        void setState(State newState, QString msg=QString());
         void readDatagram(QByteArray &datagram, QHostAddress *peerAddress=nullptr, quint16 *peerPort=nullptr);
         void sendDatagram(QByteArray datagram, bool startRetransmitTimer=false);
         void stopRetransmitTimer();
@@ -103,7 +103,7 @@ class Session : public QObject
 
     signals:
         void finished();
-        void error();
+        void error(QString errMsg);
         void slowNetwork();
 
     private:

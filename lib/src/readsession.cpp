@@ -83,7 +83,7 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
     else if ( mode == "mail" )
     {
         // mail transfer mode not supported
-        setState(State::InError);
+        setState(State::InError, "'mail' transfer mode not supported");
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Mail transfer not supported");
         sendDatagram(errorDgram);
         return;
@@ -92,7 +92,7 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
     else
     {
         //illegal transfer mode
-        setState(State::InError);
+        setState(State::InError, QString("RRQ contains illegal transfer mode ")+mode);
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Illegal transfer mode");
         sendDatagram(errorDgram);
         return;
@@ -102,7 +102,7 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
 
     if ( ! fileExists() )
     {
-        setState(State::InError);
+        setState(State::InError, "File not found");
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::FileNotFound, "File not found");
         sendDatagram(errorDgram);
         return;
@@ -110,7 +110,7 @@ ReadSession::ReadSession(const QHostAddress &peerAddr, uint16_t peerPort, QByteA
     }
     if ( ! openFile(QIODevice::ReadOnly) )
     {
-        setState(State::InError);
+        setState(State::InError, "Could not open file");
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::Undefined, lastFileError());
         sendDatagram(errorDgram);
         return;
@@ -240,7 +240,7 @@ void ReadSession::dataReceived()
     }
     if (state() == State::Finished)
     {
-        setState(State::InError);
+        setState(State::InError, "Received data when already finished");
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Unexpected TFTP opcode");
         sendDatagram(errorDgram);
         return;
@@ -267,7 +267,7 @@ void ReadSession::dataReceived()
     // From here ReadSession should only receive ACK datagrams
     if (datagram.size() < 4)
     {
-        setState(State::InError);
+        setState(State::InError, "Received malformed datagram");
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::Undefined, "Malformed datagram");
         sendDatagram(errorDgram);
         return;
@@ -275,7 +275,7 @@ void ReadSession::dataReceived()
 
     if (opCode != TftpCode::TFTP_ACK)
     {
-        setState(State::InError);
+        setState(State::InError, QString("Unexpected opcode ")+QString::number(opCode, 10));
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Unexpected TFTP opcode");
         sendDatagram(errorDgram);
         return;
@@ -297,7 +297,7 @@ void ReadSession::dataReceived()
     }
     if (ackBlockNr != m_blockNr)
     {
-        setState(State::InError);
+        setState(State::InError, QString("Received ACK with wrong blocknr"));
         QByteArray errorDgram = assembleTftpErrorDatagram(TftpCode::IllegalOp, "Ack contains wrong block number");
     //    std::cerr << std::chrono::duration_cast<std::chrono::microseconds>(currTime-m_debugStartTime).count() << ": wrong ack recvd, send error" << std::endl;
         sendDatagram(errorDgram);
