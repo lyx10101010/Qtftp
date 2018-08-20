@@ -18,10 +18,10 @@
 *
 ****************************************************************************/
 
-#include "tftpserver.h"
-#include "readsession.h"
-#include "udpsocketfactory.h"
-#include "tftp_error.h"
+#include "qtftp/tftpserver.h"
+#include "qtftp/readsession.h"
+#include "qtftp/udpsocketfactory.h"
+#include "qtftp/tftp_error.h"
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <QHostAddress>

@@ -18,13 +18,13 @@
 *
 ****************************************************************************/
 
-#include "tftpserver.h"
-#include "readsession.h"
-#include "tftp_error.h"
-#include "tftp_constants.h"
-#include "tftp_utils.h"
-#include "udpsocketfactory.h"
-#include "udpsocket.h"
+#include "qtftp/tftpserver.h"
+#include "qtftp/readsession.h"
+#include "qtftp/tftp_error.h"
+#include "qtftp/tftp_constants.h"
+#include "qtftp/tftp_utils.h"
+#include "qtftp/udpsocketfactory.h"
+#include "qtftp/udpsocket.h"
 #include <QDir>
 #include <QByteArray>
 #ifdef _WIN32

@@ -18,11 +18,11 @@
 *
 ****************************************************************************/
 
-#include "tftpserver.h"
-#include "tftp_constants.h"
+#include "qtftp/tftpserver.h"
+#include "qtftp/tftp_constants.h"
 #include "udpsocketstubfactory.h"
 #include "simulatednetworkstream.h"
-#include "tftp_error.h"
+#include "qtftp/tftp_error.h"
 #include <QByteArray>
 #include <QTest>
 #ifdef _WIN32

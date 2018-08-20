@@ -1,4 +1,4 @@
-#include "readsession.h"
+#include "qtftp/readsession.h"
 #include "udpsocketstubfactory.h"
 #include "simulatednetworkstream.h"
 #include <gtest/gtest.h>

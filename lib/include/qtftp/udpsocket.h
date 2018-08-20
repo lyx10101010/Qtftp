@@ -21,7 +21,7 @@
 #ifndef UDPSOCKET_H
 #define UDPSOCKET_H
 
-#include "abstractsocket.h"
+#include "qtftp/abstractsocket.h"
 #include <QObject>
 #include <QUdpSocket>
 

@@ -18,10 +18,9 @@
 *
 ****************************************************************************/
 
-#include "include/session.h"
-
-#include "udpsocketfactory.h"
-#include "tftp_error.h"
+#include "qtftp/session.h"
+#include "qtftp/udpsocketfactory.h"
+#include "qtftp/tftp_error.h"
 #include <QFileInfo>
 #include <QDir>
 #include <string>

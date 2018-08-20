@@ -21,9 +21,9 @@
 #ifndef TFTP_UTILS_H
 #define TFTP_UTILS_H
 
-#include "tftp_constants.h"
-#include "tftp_error.h"
-#include "udpsocket.h"
+#include "qtftp/tftp_constants.h"
+#include "qtftp/tftp_error.h"
+#include "qtftp/udpsocket.h"
 #include <QByteArray>
 #include <QHostAddress>
 #ifdef _WIN32

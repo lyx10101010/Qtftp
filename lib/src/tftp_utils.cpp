@@ -18,7 +18,7 @@
 *
 ****************************************************************************/
 
-#include "tftp_utils.h"
+#include "qtftp/tftp_utils.h"
 
 
 namespace QTFTP

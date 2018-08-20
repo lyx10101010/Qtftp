@@ -18,8 +18,8 @@
 *
 ****************************************************************************/
 
-#include <include/udpsocket.h>
-#include "include/udpsocketfactory.h"
+#include "qtftp/udpsocket.h"
+#include "qtftp/udpsocketfactory.h"
 
 
 namespace QTFTP

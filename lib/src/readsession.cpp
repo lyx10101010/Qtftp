@@ -18,9 +18,9 @@
 *
 ****************************************************************************/
 
-#include "readsession.h"
-#include "tftp_utils.h"
-#include "tftp_constants.h"
+#include "qtftp/readsession.h"
+#include "qtftp/tftp_utils.h"
+#include "qtftp/tftp_constants.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #else

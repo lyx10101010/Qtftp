@@ -18,7 +18,7 @@
 *
 ****************************************************************************/
 
-#include "udpsocket.h"
+#include "qtftp/udpsocket.h"
 #include <QAbstractSocket>
 
 namespace QTFTP

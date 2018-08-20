@@ -21,9 +21,10 @@
 #ifndef UDPSOCKETSTUBFACTORY_H
 #define UDPSOCKETSTUBFACTORY_H
 
-#include "udpsocketfactory.h"
+#include "qtftp/udpsocketfactory.h"
+#include "qtftp/abstractsocket.h"
 #include <vector>
-#include <abstractsocket.h>
+
 
 class QHostAddress;
 

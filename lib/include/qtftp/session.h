@@ -21,7 +21,7 @@
 #ifndef SESSION_H
 #define SESSION_H
 
-#include <tftp_constants.h>
+#include "qtftp/tftp_constants.h"
 #include <QHostAddress>
 #include <QFile>
 #include <QTimer>

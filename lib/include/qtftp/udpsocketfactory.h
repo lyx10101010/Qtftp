@@ -21,7 +21,7 @@
 #ifndef UDPSOCKETFACTORY_H
 #define UDPSOCKETFACTORY_H
 
-#include "abstractsocket.h"
+#include "qtftp/abstractsocket.h"
 #include <memory>
 
 class QObject;

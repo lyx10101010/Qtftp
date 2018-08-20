@@ -22,7 +22,7 @@
 //Unbelievable, windows.h defines a macro min that messes up the std::min standard c++ library .....
 #define NOMINMAX
 #endif
-#include "readsession.h"
+#include "qtftp/readsession.h"
 #include "udpsocketstubfactory.h"
 #include "simulatednetworkstream.h"
 //#include <gtest/gtest.h>

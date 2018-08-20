@@ -22,7 +22,7 @@
 #define UDPSOCKETSTUB_H
 
 #include "simulatednetworkstream.h"
-#include "abstractsocket.h"
+#include "qtftp/abstractsocket.h"
 #include <QByteArray>
 #include <list>
 #include <vector>

@@ -21,8 +21,8 @@
 #ifndef READSESSION_H
 #define READSESSION_H
 
-#include "session.h"
-#include "udpsocketfactory.h"
+#include "qtftp/session.h"
+#include "qtftp/udpsocketfactory.h"
 #include <QByteArray>
 #include <chrono>
 

@@ -4,15 +4,15 @@ project(qtftp_lib)
 include("GNUInstallDirs")
 
 
-set( QTFTP_INCLUDE_FILES include/abstractsocket.h
-                         include/udpsocket.h
-                         include/udpsocketfactory.h
-                         include/session.h
-                         include/readsession.h
-                         include/tftpserver.h
-                         include/tftp_error.h
-                         include/tftp_utils.h
-                         include/tftp_constants.h
+set( QTFTP_INCLUDE_FILES include/qtftp/abstractsocket.h
+                         include/qtftp/udpsocket.h
+                         include/qtftp/udpsocketfactory.h
+                         include/qtftp/session.h
+                         include/qtftp/readsession.h
+                         include/qtftp/tftpserver.h
+                         include/qtftp/tftp_error.h
+                         include/qtftp/tftp_utils.h
+                         include/qtftp/tftp_constants.h
 )
 
 set( QTFTP_SOURCE_FILES src/udpsocket.cpp
@@ -72,7 +72,7 @@ install(TARGETS Qtftp EXPORT QtftpTargets
     RUNTIME DESTINATION bin
     INCLUDES DESTINATION include
 )
-install(FILES ${QTFTP_INCLUDE_FILES} DESTINATION include)
+install(FILES ${QTFTP_INCLUDE_FILES} DESTINATION include/qtftp)
 
 #And some boiler plate code to generate the cmake module files
 install(EXPORT QtftpTargets

@@ -18,7 +18,7 @@
 *
 ****************************************************************************/
 
-#include "include/udpsocketstubfactory.h"
+#include "udpsocketstubfactory.h"
 #include "udpsocketstub.h"
 #include <QHostAddress>
 

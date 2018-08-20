@@ -21,7 +21,7 @@
 #ifndef QTFTPSERVER_H
 #define QTFTPSERVER_H
 
-#include "udpsocket.h"
+#include "qtftp/udpsocket.h"
 #include <QObject>
 #include <QHostAddress>
 #include <memory>

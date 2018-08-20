@@ -18,7 +18,7 @@
 *
 ****************************************************************************/
 
-#include "abstractsocket.h"
+#include "qtftp/abstractsocket.h"
 
 namespace QTFTP
 {
