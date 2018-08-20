@@ -280,7 +280,7 @@ void Session::setState(Session::State newState, QString msg)
  */
 void Session::readDatagram(QByteArray &datagram, QHostAddress *peerAddress, quint16 *peerPort)
 {
-    int dgramSize = m_sessionSocket->pendingDatagramSize();
+    int dgramSize = static_cast<int>(m_sessionSocket->pendingDatagramSize());
     datagram.resize( dgramSize );
     if (m_sessionSocket->readDatagram( datagram.data(), dgramSize, peerAddress, peerPort ) == -1)
     {
