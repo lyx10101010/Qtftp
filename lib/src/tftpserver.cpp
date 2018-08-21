@@ -81,6 +81,11 @@ quint16 ConnectionRequestSocket::localPort() const
     return m_socket->localPort();
 }
 
+QHostAddress ConnectionRequestSocket::localAddress() const
+{
+    return m_socket->localAddress();
+}
+
 bool ConnectionRequestSocket::bind(const QHostAddress &address, quint16 port, QAbstractSocket::BindMode mode)
 {
     return m_socket->bind(address, port, mode);
@@ -115,15 +120,9 @@ void ConnectionRequestSocket::close()
 
 TftpServer::TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent) : QObject(parent),
                                                                                                                     m_socketFactory(socketFactory),
-                                                                                                                    //m_mainSocket( std::static_pointer_cast<UdpSocket>(m_socketFactory->createNewSocket()) ),
                                                                                                                     m_slowNetworkThreshold(2000)
 {
 }
-
-
-//TftpServer::TftpServer(std::shared_ptr<UdpSocketFactory> socketFactory, QObject *parent) : TftpServer(QString(), socketFactory, parent)
-//{
-//}
 
 
 /**
@@ -183,11 +182,23 @@ void TftpServer::setSlowNetworkDetectionThreshold(unsigned int ackLatencyUs)
 }
 
 
+std::vector<std::pair<QHostAddress, uint16_t>> TftpServer::bindings() const
+{
+    std::vector<std::pair<QHostAddress, uint16_t>> currentBindings;
+    for (const auto &nextSocket : m_mainSockets)
+    {
+        currentBindings.emplace_back(std::make_pair(nextSocket->localAddress(), nextSocket->localPort()));
+    }
+    return currentBindings;
+}
+
+
 std::shared_ptr<const ReadSession> TftpServer::findReadSession(const SessionIdent &sessionIdent) const
 {
     auto readSesPtr = doFindReadSession(sessionIdent);
     return readSesPtr;
 }
+
 
 void TftpServer::handleNewData(std::shared_ptr<ConnectionRequestSocket> mainSocket)
 {

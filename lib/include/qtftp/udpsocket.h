@@ -41,8 +41,8 @@ class UdpSocket : public AbstractSocket
     Q_OBJECT
 
     public:
-        explicit UdpSocket(QObject *parent = 0);
-        virtual ~UdpSocket();
+        explicit UdpSocket(QObject *parent = nullptr);
+        virtual ~UdpSocket() override;
 
         qint64 pendingDatagramSize() const override;
         bool hasPendingDatagrams() const override;
@@ -53,8 +53,8 @@ class UdpSocket : public AbstractSocket
         virtual QString errorString() const override;
 
         bool bind(const QHostAddress & address, quint16 port = 0, QAbstractSocket::BindMode mode = QAbstractSocket::DefaultForPlatform) override;
-        void close();
-        qint64 readDatagram(char * data, qint64 maxSize, QHostAddress *address = 0, quint16 *port = 0) override;
+        virtual void close() override;
+        qint64 readDatagram(char * data, qint64 maxSize, QHostAddress *address = nullptr, quint16 *port = nullptr) override;
         qint64 writeDatagram(const QByteArray & datagram, const QHostAddress & host, quint16 port) override;
 
     private:

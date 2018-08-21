@@ -53,6 +53,7 @@ class ConnectionRequestSocket : public QObject
         bool hasPendingDatagrams() const;
         qint64 pendingDatagramSize() const;
         quint16 localPort() const;
+        QHostAddress localAddress() const;
 
         bool bind(const QHostAddress &address, quint16 port = 0, QAbstractSocket::BindMode mode = QAbstractSocket::DefaultForPlatform);
         qint64 readDatagram(char *data, qint64 maxSize, QHostAddress *address = nullptr, quint16 *port = nullptr);
@@ -82,6 +83,7 @@ class TftpServer : public QObject
 
         void setSlowNetworkDetectionThreshold(unsigned int ackLatencyUs);
 
+        std::vector<std::pair<QHostAddress, uint16_t>> bindings() const;
         std::shared_ptr<const ReadSession> findReadSession(const SessionIdent &sessionIdent) const;
 
     signals:
