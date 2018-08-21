@@ -165,7 +165,7 @@ bool Session::readFromFile(QByteArray &buffer, qint64 maxSize)
     qint64 bytesInBuffer = buffer.size();
     if (bytesToRead)
     {
-        buffer.resize( buffer.size() + bytesToRead );
+        buffer.resize( static_cast<int>(buffer.size() + bytesToRead) );
     }
     assert(bytesInBuffer+bytesToRead <= buffer.size());
     qint64 bytesRead = m_file.read(buffer.data()+bytesInBuffer, bytesToRead);
@@ -231,7 +231,7 @@ void Session::sendDatagram(QByteArray datagram, bool startRetransmitTimer)
 
     if (startRetransmitTimer)
     {
-        m_retransmitTimer.start(m_retransmitTimeOut);
+        m_retransmitTimer.start(static_cast<int>(m_retransmitTimeOut));
     }
 }
 
@@ -239,6 +239,13 @@ void Session::sendDatagram(QByteArray datagram, bool startRetransmitTimer)
 void Session::stopRetransmitTimer()
 {
     m_retransmitTimer.stop();
+    resetRetransmitCounter();
+}
+
+
+void Session::resetRetransmitCounter()
+{
+    m_retransmitCount = 0;
 }
 
 

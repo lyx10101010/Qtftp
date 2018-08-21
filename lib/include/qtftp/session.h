@@ -92,6 +92,7 @@ class Session : public QObject
         void readDatagram(QByteArray &datagram, QHostAddress *peerAddress=nullptr, quint16 *peerPort=nullptr);
         void sendDatagram(QByteArray datagram, bool startRetransmitTimer=false);
         void stopRetransmitTimer();
+        void resetRetransmitCounter();
         virtual void retransmitData() = 0;
 
 

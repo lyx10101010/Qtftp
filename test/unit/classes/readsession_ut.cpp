@@ -82,6 +82,7 @@ class ReadSessionTest : public QObject
         void transferFileLargerThanOneBlockBinary();
         void transferFileExactMultipleOfBlockSizeBinary();
         void retransmitDataBlockOnTimeout();
+        void retransmitMultiplePackets();
         void transmitFileSmallerThanOneBlockAscii();
         void transmitFileLargerThanOneBlockAscii();
         void detectSlowNetwork();
@@ -217,7 +218,6 @@ void ReadSessionTest::errorOnNonReadableFile()
 
 void ReadSessionTest::transferFileSmallerThanOneBlockBinary()
 {
-    std::cerr << "transferFileSmallerThanOneBlockBinary start" << std::endl;
     QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
     rrqDatagram.append("16_byte_file.txt");  // name of requested file
     rrqDatagram.append(char(0x0));           // terminating \0 of filename
@@ -448,6 +448,56 @@ void ReadSessionTest::retransmitDataBlockOnTimeout()
 
     QCOMPARE(m_readSession->state(), Session::State::InError);
 
+}
+
+
+//Unit test created for issue YMP-113: retransmission stopped after total retransmissions exceeds max iso only retransmissions of last package
+void ReadSessionTest::retransmitMultiplePackets()
+{
+    //reduce the timeout value for re-transmission to keep our unit test execution time short
+    ReadSession::setRetransmitTimeOut(30);
+    ReadSession::setMaxRetransmissions(3);
+
+    QByteArray rrqDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_rrqOpcode), sizeof(m_rrqOpcode));
+    rrqDatagram.append("large_file.txt"); // name of requested file
+    rrqDatagram.append(char(0x0));           // terminating \0 of filename
+    rrqDatagram.append("octet");             // transfer mode
+    rrqDatagram.append(char(0x0));           // terminating \0 of transfer mode
+
+    QByteArray sentData = createReadSessionAndReturnNetworkResponse(QHostAddress("10.6.11.123"), 1234, rrqDatagram);
+    //contents of first block already tested in previous tests
+
+    QTest::qWait(80); // simulate no response from client after initial transmission, readsession should retransmit twice
+
+    //test that first block of file was sent again twice
+    SimulatedNetworkStream &outNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
+    outNetworkStream >> sentData;
+    if (sentData.size() != 2*(DefaultTftpBlockSize+4))
+    {
+        QString msg = QString("Retransmissions have wrong packet size or wrong nr of retransmissions. Total network output: actual: %1, expected: %2").arg(
+                    QString::number(sentData.size()), QString::number( 2*(DefaultTftpBlockSize+4) ) );
+        QFAIL(static_cast<const char*>(msg.toLatin1()));
+    }
+
+    //send ack to readsession
+    SimulatedNetworkStream &inNetworkStream = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Input, QHostAddress::Any, 0);
+    QByteArray ackDatagram = QByteArray::fromRawData(reinterpret_cast<char*>(&m_ackOpcode), sizeof(m_ackOpcode));
+    uint16_t ackBlockNr = htons( 0x0001);
+    ackDatagram.append(reinterpret_cast<const char*>(&ackBlockNr), sizeof(ackBlockNr));
+    inNetworkStream << ackDatagram;
+
+    QTest::qWait(180); // simulate no response from client after initial transmission, readsession should retransmit 3 times
+
+    //test that second block of file was sent again DefaultMaxRetryCount times
+    SimulatedNetworkStream &outNetworkStream2 = m_socketFactory->getNetworkStreamBySource(UdpSocketStubFactory::StreamDirection::Output, QHostAddress::Any, 0);
+    outNetworkStream2 >> sentData;
+    if (sentData.size() != 4*(DefaultTftpBlockSize+4))
+    {
+        unsigned dummy = 4*(DefaultTftpBlockSize+4);
+        QString msg = QString("Retransmissions have wrong packet size or wrong nr of retransmissions. Total network output: actual: %1, expected: %2").arg(
+                    QString::number(sentData.size()), QString::number( 4*(DefaultTftpBlockSize+4) ) );
+        QFAIL(static_cast<const char*>(msg.toLatin1()));
+    }
 }
 
 
